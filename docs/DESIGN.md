@@ -14,8 +14,11 @@ UI/UX specification for the v0 page (and forward pointers for the v1 widget). Th
 - **Tone:** warm chai palette. Default theme tokens (CSS custom properties, overridable via config `theme`):
   - `--chai-bg` #FFF8F0 (milk cream) · `--chai-surface` #FFFFFF · `--chai-ink` #2B1D14 (dark brew)
   - `--chai-accent` #C4622D (masala chai terracotta) · `--chai-accent-ink` #FFFFFF
-  - Dark mode: bg #1A130E, surface #241B14, ink #F3E9DF, same accent.
-- **Type:** system stack + optional display font for the name ("Inter" self-hosted; no external font CDN calls — privacy rule). Base 16px, generous line-height.
+  - `--chai-accent-strong` #A34E22 — **the only accent you may put white text on.** The brand accent is 4.09:1 against white: fine for fills, borders, icons and large text (≥24px, where 3:1 applies), but it fails AA for normal-size text placed on top of it. See ADR-018.
+  - Dark mode: bg #1A130E, surface #241B14, ink #F3E9DF, accent lifted to #E08A4F (6.4:1) so it still reads as terracotta on a dark brew.
+  - The QR is always black on white, in both themes. Inverting it is the most common way to make a QR unscannable.
+- **Type:** system stack + optional display font for the name ("Inter" self-hosted; no external font CDN calls — privacy rule). Base 16px, generous line-height. With no webfont in v0, the type personality comes from scale and tracking: a tiny letter-spaced eyebrow (11px / 0.16em) against a very large, tightly-tracked amount numeral (52px / -0.03em). Amounts are `tabular-nums` so a live-updating figure holds its column instead of reflowing on every keystroke. The VPA is set in `--font-vpa` (monospace) for a functional reason — it is an identifier donors verify character by character, and fixed-width glyphs are what make a transposed character visible.
+- **The tear:** the payment card is split by a perforated line with punched notches, above which is what the donor chooses and below which is what they carry to their UPI app. It borrows the chai-stall ticket stub deliberately — the page is a tapri, not a checkout counter.
 - **Iconography:** single set (Lucide). The chai cup ☕ emoji is allowed in strings; keep it out of buttons that fire payments (clarity > cuteness).
 - **Motion:** micro only — QR crossfade on regenerate (150ms), copy-toast slide. No page transitions, no confetti (confetti implies confirmed payment — see honest UX).
 

@@ -8,7 +8,7 @@
 | UI | React 18 + TypeScript (strict) | Owner's home turf; v1 widget will NOT use React (see ADR-004) |
 | Styling | Tailwind CSS v4 + CSS custom properties for theme tokens | Tokens make widget theming portable |
 | Validation | Zod v4 (`z.strictObject`) | Config schema = runtime validation + inferred TS types, one source of truth |
-| QR | `qrcode` (client-side canvas → dataURL) | No server, regenerates per keystroke |
+| QR | `qrcode` as an **encoder only**; we render the SVG and PNG ourselves (ADR-017) | No server, no canvas, regenerates per keystroke — and the downloaded bytes are decodable in CI |
 | Tests | Vitest + @testing-library/react + `jsqr` (decode QRs in tests) | URI builder & QR round-trip provable in CI |
 | Package mgr | pnpm (Node 24) | Workspaces-ready for v1 monorepo. Node 24 strips TS types natively, so build scripts need no `tsx`/`ts-node` |
 | CI/CD | GitHub Actions | lint + typecheck + test + build (root **and** subpath) on PR; deploy to Pages on main |
@@ -54,6 +54,9 @@ buy-me-a-chai/
     │   └── config.ts          # the app's singleton (throws at import on bad config)
     ├── lib/
     │   ├── upi.ts             # buildUpiUri(), validateVpa(), formatAmount()
+    │   ├── qr.ts              # matrix + SVG + PNG encoders, no canvas (ADR-017)
+    │   ├── amount.ts          # donor input parsing, ₹ formatting (en-IN grouping)
+    │   ├── download.ts        # data: URI → file; the one DOM-touching lib module
     │   ├── device.ts          # isMobile(), canDeeplink() heuristics
     │   └── clipboard.ts
     ├── analytics/
@@ -112,7 +115,7 @@ Adapter chosen once at startup from config. `noop` is the default export path; P
 | Area | Approach |
 |---|---|
 | `upi.ts` | Table-driven unit tests: amounts (1, 1.5→rejected per ADR-011, 100000+), notes (empty→default, 61 chars, emoji, `&`/`#`), VPA validation matrix |
-| QR round-trip | Generate QR → decode with `jsqr` → assert exact URI equality |
+| QR round-trip | Generate QR → decode the **rendered pixels** and the **downloaded PNG** with `jsqr` → assert exact URI equality. The PNG's zlib stream is separately validated by Node's `inflateSync`, so our encoder is not marking its own homework |
 | Config schema | Valid example passes; each invalid field yields its specific error message |
 | Components | PaymentCard interaction (chip select, custom amount, counter), PayZone device branching (mock `device.ts`) |
 | CI gate | `pnpm verify` on every PR, plus a subpath build, a config-validity check, and a **negative** test asserting the placeholder guard rejects the shipped example (ADR-013) |
