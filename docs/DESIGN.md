@@ -73,7 +73,7 @@ Max content width 480px, centered — the page is intentionally a "card", which 
 ## Empty/edge states
 - Config missing avatar → initials disc in accent color.
 - No works → hide section entirely (no empty placeholders).
-- JS disabled → server-rendered? No (static SPA). Provide `<noscript>`: VPA in plain text + static QR? v0: `<noscript>` shows VPA and instructions only (static QR needs build-time generation — logged as nice-to-have).
+- JS disabled → server-rendered? No (static SPA). The `<noscript>` shows the creator's real VPA in plain text plus copy instructions — baked into `index.html` at build time by the `chai-noscript` plugin (ADR-020), since the config VPA is not otherwise in the served HTML. A build-time **static QR** is still a nice-to-have, not built.
 - Invalid clipboard API (old browsers) → fallback to a select-all readonly input.
 
 ## Accessibility

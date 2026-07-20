@@ -27,7 +27,7 @@ buy-me-a-chai/
 ├── LICENSE                    # MIT
 ├── chai.config.ts             # ← the creator's file (example ships pre-filled)
 ├── index.html
-├── vite.config.ts             # base: env BASE_PATH || '/'; chai-config-validator plugin
+├── vite.config.ts             # base: env BASE_PATH || '/'; chai-config-validator + chai-noscript plugins
 ├── biome.jsonc                # lint + format
 ├── tsconfig.json              # solution: references app / node / scripts projects
 ├── .nvmrc  .node-version      # Node 24
@@ -57,8 +57,8 @@ buy-me-a-chai/
     │   ├── qr.ts              # matrix + SVG + PNG encoders, no canvas (ADR-017)
     │   ├── amount.ts          # donor input parsing, ₹ formatting (en-IN grouping)
     │   ├── download.ts        # data: URI → file; the one DOM-touching lib module
-    │   ├── device.ts          # isMobile(), canDeeplink() heuristics
-    │   └── clipboard.ts
+    │   ├── device.ts          # isMobileDevice() single pointer heuristic (ADR-019)
+    │   └── clipboard.ts       # copyText(): async Clipboard API + execCommand fallback
     ├── analytics/
     │   ├── types.ts           # AnalyticsAdapter { track(event, props) }
     │   ├── noop.ts            # default; zero imports, zero network
@@ -70,7 +70,9 @@ buy-me-a-chai/
     │   ├── QrCode.tsx  Toast.tsx
     │   └── Footer.tsx
     └── hooks/
-        ├── useUpiIntent.ts    # amount+note → { uri, qrDataUrl }
+        ├── useUpiIntent.ts    # amount+note → { intent, errors, qr }
+        ├── useIsMobile.ts     # useSyncExternalStore over the pointer heuristic
+        ├── useToast.ts        # one ephemeral copy-confirmation toast
         └── useDeeplinkAttempt.ts  # visibility-change failure heuristic
 ```
 
@@ -79,7 +81,7 @@ v1 restructures to pnpm workspaces: `packages/page`, `packages/widget` (Lit web 
 ## Key flows
 
 ### Config → page
-`chai.config.ts` (creator-edited, gitignored? **No** — committed; it's the point of the fork) → parsed with Zod → an invalid config fails the build with a formatted error listing each bad field. Enforcement is the `chai-config-validator` plugin in `vite.config.ts`, **not** an import in app code: a bundler only bundles modules, it never executes them, so a module-scope throw would not fail `vite build` (ADR-016). `src/config/config.ts` additionally throws at module load so `pnpm dev` shows the same block in Vite's overlay. CI runs both the build and a dedicated `pnpm check:config` step.
+`chai.config.ts` (creator-edited, gitignored? **No** — committed; it's the point of the fork) → parsed with Zod → an invalid config fails the build with a formatted error listing each bad field. Enforcement is the `chai-config-validator` plugin in `vite.config.ts`, **not** an import in app code: a bundler only bundles modules, it never executes them, so a module-scope throw would not fail `vite build` (ADR-016). `src/config/config.ts` additionally throws at module load so `pnpm dev` shows the same block in Vite's overlay. CI runs both the build and a dedicated `pnpm check:config` step. A second plugin, `chai-noscript`, reads the same parsed config and bakes the creator's real VPA into the `<noscript>` block of `index.html`, so a JS-disabled donor still gets a UPI ID to copy (ADR-020).
 
 ### Amount → payable intent
 ```
