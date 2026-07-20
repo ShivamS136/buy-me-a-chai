@@ -18,12 +18,16 @@ Thanks for helping keep chai commission-free. ☕
 ## Dev setup
 
 ```bash
+corepack enable pnpm   # once — picks up the pinned pnpm from package.json
 pnpm install
-pnpm dev        # local dev server with the example config
-pnpm typecheck && pnpm test && pnpm build   # must be green before PR
+pnpm dev               # local dev server with the example config
+pnpm verify            # lint + typecheck + test + build — must be green before PR
 ```
 
-Node 20+, pnpm 9+.
+**Node 24+, pnpm 11+.** Both are enforced (`engines` + `engine-strict=true`), so a mismatch fails
+`pnpm install` rather than producing confusing errors later. `nvm use` / `fnm use` picks up `.nvmrc`.
+
+Lint and format are Biome: `pnpm lint` to check, `pnpm lint:fix` to autofix.
 
 ## Ground rules (enforced in review)
 
@@ -32,12 +36,14 @@ Node 20+, pnpm 9+.
 - No new runtime dependencies without an issue discussion (bundle size and auditability are features).
 - No network calls outside the enabled analytics adapter. No external CDNs for fonts/icons/scripts on the page.
 - UPI URIs: `pa, pn, am, cu, tn` only — never add `mc`/`tr`/`mode` (see CLAUDE.md "UPI domain knowledge").
+- Never encode UPI params with `URLSearchParams` — it emits `+` for spaces (ADR-010).
+- `src/lib/` and `src/config/` are framework-free and stay import-free (no React, no `node:*`, not even `strings.ts`) so the v1 widget can extract them. They emit error *codes*; UI copy is keyed off the code in `strings.ts` (ADR-015).
 - Never add UI implying payment confirmation.
 - Conventional Commits. Keep PRs single-purpose.
 
 ## PR checklist
 
-- [ ] `pnpm typecheck && pnpm test && pnpm build` green
+- [ ] `pnpm verify` green (lint + typecheck + test + build)
 - [ ] Builds correctly with subpath: `BASE_PATH=/buy-me-a-chai/ pnpm build`
 - [ ] Docs updated if behavior/config changed (CONFIG.md for schema, COMPAT.md for device findings)
 - [ ] New ADR proposed in DECISIONS.md if you changed a decided direction

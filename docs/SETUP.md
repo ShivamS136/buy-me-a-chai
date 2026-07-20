@@ -7,6 +7,10 @@ No servers, no signups beyond GitHub, no fees. You'll fork this repo, edit one f
 - Your UPI ID (open your UPI app → profile → "UPI ID", looks like `name@okaxis`)
 - 15 minutes and ₹1 (for the self-test — you pay yourself)
 
+You do **not** need to install anything: GitHub builds and hosts the page for you. Only if you
+want to run it on your own machine do you need **Node 24+** and **pnpm 11+** (`nvm use` picks up
+the repo's `.nvmrc`), then `pnpm install && pnpm dev`.
+
 ## Step 1 — Get the code
 Click **Use this template → Create a new repository** on [`shivams136/buy-me-a-chai`](https://github.com/shivams136/buy-me-a-chai). Name it anything (`buy-me-a-chai` keeps URLs clean). Public or private both work — Pages on private repos needs GitHub Pro, so public recommended.
 
@@ -60,6 +64,10 @@ Want page views and amount-selection counts? Create a free [PostHog](https://pos
    ```bash
    POSTHOG_PERSONAL_API_KEY=phx_... POSTHOG_PROJECT_ID=12345 node scripts/posthog-dashboard.mjs
    ```
+   Prefer asking an AI agent? PostHog ships an MCP server, so you can create the same dashboard
+   conversationally instead — see Path B in [ANALYTICS.md](./ANALYTICS.md). Either way, send a few
+   real events first, or there is nothing for the charts to verify against.
+
    Details, the manual alternative, and what every chart honestly means: [ANALYTICS.md](./ANALYTICS.md).
 
 Heads-up on what analytics *means* here: you'll see views, chosen amounts, and pay-button clicks — **not completed payments**. UPI P2P has no confirmation callback; a "₹500 pay click" is interest, not income. That missing callback is also exactly why nobody (including us) can charge you a commission.
@@ -73,6 +81,7 @@ Heads-up on what analytics *means* here: you'll see views, chosen amounts, and p
 | Symptom | Fix |
 |---|---|
 | Build failed on push | Open the Actions log — config errors list the exact field. Usually the VPA or a too-long note. |
+| "Refusing to deploy: chai.config.ts still has the example values" | Working as intended — you haven't replaced `creator.vpa` / `creator.name` yet. Do Step 2, commit, push. To preview the page before you have a UPI ID to hand, set `CHAI_ALLOW_PLACEHOLDER=1`. |
 | Page is blank on Pages but fine on Vercel | You edited `vite.config.ts` `base` — revert; the workflow sets it automatically. |
 | "Pay with UPI app" does nothing on my phone | Known GPay/PhonePe limitation for browser payments to personal UPI IDs — not a bug in your page. Donors see the Copy-UPI-ID and QR fallbacks automatically. |
 | QR scans but amount is editable/absent in some app | Some apps treat P2P QR amounts as suggestions. Donor can type it; the note still carries through. |

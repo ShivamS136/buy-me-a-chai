@@ -5,7 +5,7 @@ This file is the **public API** of buy-me-a-chai. Creators edit only this (plus 
 ## Full annotated example
 
 ```ts
-import { defineConfig } from './src/config/schema';
+import { defineConfig } from './src/config/schema.ts';   // explicit .ts — Node 24 type-stripping
 
 export default defineConfig({
   creator: {
@@ -41,12 +41,14 @@ export default defineConfig({
 
   theme: {
     mode: 'auto',                             // 'light' | 'dark' | 'auto' (default)
-    accent: '#C4622D',                        // any valid CSS color; contrast-checked at build (warn)
+    accent: '#C4622D',                        // hex / rgb() / oklch(); contrast-checked at build (warn)
   },
 
   analytics: {                                // optional — omit entirely to disable (default)
     provider: 'posthog',
-    apiKey: import.meta.env.VITE_POSTHOG_KEY, // env-driven so forks don't inherit keys
+    apiKey: import.meta.env?.VITE_POSTHOG_KEY, // env-driven so forks don't inherit keys.
+                                              // The `?.` is REQUIRED: import.meta.env is
+                                              // undefined under the plain-Node config check.
     host: 'https://us.i.posthog.com',         // optional, default US cloud
   },
 
@@ -67,18 +69,38 @@ export default defineConfig({
 | `creator.name` | 1–50 chars, no URL | Build fails |
 | `chai.basePrice` | int, 1–10000 | Build fails |
 | `chai.presets` | 1–4 unique ints, 1–99, ascending auto-sort | Build fails |
-| `chai.defaultNote` | ≤ 60 chars after trim | Build fails (message shows char count) |
-| `theme.accent` | parseable CSS color | Build fails |
-| accent contrast vs surface | ≥ 4.5:1 | **Warn only** |
+| `chai.defaultNote` | ≤ 60 code points after trim (same unit the URI builder truncates on) | Build fails (message shows char count) |
+| `theme.accent` | hex (3/4/6/8), `rgb()`/`rgba()`, or a modern colour function (`oklch()`, `lab()`, …) which is accepted but not contrast-checked. Named colours (`teal`) are **not** supported yet — Session 4 | Build fails |
+| accent contrast vs surface | ≥ 3:1 (WCAG 1.4.11 non-text — the accent is a fill, not body text) | **Warn only** |
 | `analytics.apiKey` empty while provider set | — | Warn + analytics silently disabled (fork-safety) |
-| Unknown top-level keys | `.strict()` | Build fails (catches typos like `cretor`) |
+| Unknown top-level keys | `.strict()` (spelled `z.strictObject` in Zod v4) | Build fails, with a did-you-mean suggestion (catches typos like `cretor`) |
+| `chai.basePrice` × largest preset | > `maxAmountWarning` | Warn only |
+| Amount passed to the URI builder | whole rupees, ₹1 – ₹1,00,00,000 | Rejected by `buildUpiUri` (ADR-011). The ₹1 crore ceiling is a numeric-integrity guard, not policy: above it `toFixed(2)` goes exponential |
 
 Error output format: one line per issue, path-first, actionable — e.g.
 ```
 ✖ chai.config.ts invalid:
-  creator.vpa       → Invalid UPI ID "shivam okaxis" (contains space)
-  chai.basePrice    → Expected integer ≥ 1, got 0
+  creator.vpa    → Invalid UPI ID "shivam okaxis" (contains space)
+  chai.basePrice → Expected integer ≥ 1, got 0.
 ```
+Messages never repeat the field path — the path column carries it. Issues are sorted
+deterministically (unknown top-level keys first, since a typo'd key explains everything
+below it), deduplicated, and the arrow column is aligned to the longest path up to 30 chars.
+
+Warnings use the same shape with a `⚠ chai.config.ts warnings:` header and never fail the build.
+
+### Where validation runs
+
+| Surface | What it does |
+|---|---|
+| Your editor | `defineConfig` gives autocomplete and flags typos/shape errors via TypeScript |
+| `pnpm build` | The `chai-config-validator` Vite plugin parses the config in `buildStart` and fails the build |
+| `pnpm check:config` | Dedicated CI step whose output is *only* the config error — no bundler stack around it |
+| `pnpm dev` | Parsed at module load; the formatted block renders in Vite's error overlay |
+| `pnpm build:deploy` | Additionally refuses to deploy an unedited placeholder config (ADR-013) |
+
+TypeScript and Zod are two error surfaces by design: TS cannot express "matches the VPA
+regex", and Zod cannot autocomplete. See ADR-016.
 
 ## Design rationale
 

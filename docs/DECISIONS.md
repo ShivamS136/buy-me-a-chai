@@ -48,3 +48,38 @@ Format: context → decision → consequences. To change a decision, add a new A
 **Context:** Temptation to scaffold the "correct" monorepo now.
 **Decision:** v0 is one package. Restructure to pnpm workspaces in the first v1 PR.
 **Consequences:** One `git mv`-heavy PR later; much lower fork/setup friction for the entire v0 life, which is when most forks happen.
+
+## ADR-010: UPI URI encoding is RFC 3986 — never `URLSearchParams`
+**Context:** ARCHITECTURE.md originally specified `URLSearchParams` encoding for the intent URI. `URLSearchParams` implements the WHATWG `x-www-form-urlencoded` serializer, which encodes a space as `+`. UPI apps decode `upi://` query strings with plain percent-decoders, where `+` is a literal plus (RFC 3986 §3.4). Verified: `new URLSearchParams({tn:'Thanks for the chai'}).toString()` → `tn=Thanks+for+the+chai`.
+**Decision:** Encode with `encodeURIComponent`, additionally escaping `!'()*` so the payload is unreserved-only. Apply encoding to `pn` and `tn` **only**. Emit `pa`, `am` and `cu` verbatim — every character a regex-valid VPA can contain is RFC 3986 unreserved or `@`, and percent-encoding the `@` (`shivam%40okaxis`) would break parsers that don't decode `pa`.
+**Consequences:** Donor notes and creator names render correctly in the payer's app instead of showing `+` for every space. `am` never gets a `%2E`. Supersedes ARCHITECTURE.md's earlier `URLSearchParams` wording, which is now corrected. A regression test asserts `encodeUpiComponent('a b') === 'a%20b'` **and** that `URLSearchParams` still differs, so the trap is locked shut.
+
+## ADR-011: Integer rupees only, plus a numeric-integrity hard ceiling
+**Context:** ARCHITECTURE.md left "1.5 → reject?" open. Meanwhile `(1e21).toFixed(2)` returns `"1e+21"`, which would emit a malformed `am`.
+**Decision:** Reject fractional rupees (`AMOUNT_NOT_INTEGER`). Add `HARD_MAX_AMOUNT_RUPEES = 10_000_000` (₹1 crore) as a numeric-integrity guard with its own code, distinct from the ₹1,00,000 soft cap. The soft cap stays a UI warning surfaced via an `exceedsSoftCap` flag on the success value — the builder never errors on a large amount.
+**Consequences:** Aligns with DESIGN.md, which already says "integers only (UPI supports paise but donors think in rupees)". Every amount the product can produce is an integer by construction (`basePrice` and `presets` are both integers). Avoids the silent class of failure where an app rounds or drops paise and we cannot detect it (ADR-001: no confirmation channel). `chai.maxAmountWarning` remains creator-configurable.
+
+## ADR-012: The `tn` limit is 60 decoded code points, not an encoded-byte budget
+**Context:** CLAUDE.md says "`tn` ≤ 60 chars"; ARCHITECTURE.md said "truncated to 60 chars post-encoding budget". These conflict. A post-encoding budget would allow a Devanagari note roughly 6 characters (each is 9 encoded bytes: `%E0%A4%9A`) and an emoji note about 5.
+**Decision:** 60 **decoded code points**. Truncate via `Array.from`, never by UTF-16 slicing.
+**Consequences:** Usable for the Hinglish/Indic audience this product targets, and it matches the character counter the donor reads in the UI. UTF-16 slicing is banned because splitting a surrogate pair yields a lone surrogate and `encodeURIComponent` throws `URIError` on one — that would crash the QR render path on a keystroke. Sanitising strips invisible and bidi-spoofing characters but deliberately **preserves** U+200C ZWNJ and U+200D ZWJ, which are semantically required in Devanagari conjuncts and family emoji.
+
+## ADR-013: The placeholder guard is a deploy-time gate, not a build-time one
+**Context:** The example config must ship with a creator-shaped VPA. `yourname@bank` is a valid *format*, so the Zod schema accepts it — which is required, because CI has to build the shipped example to prove the example is valid. But a fork that deployed it unedited would publish a page whose QR points at nobody.
+**Decision:** Keep `pnpm build` pure so the canonical repo and every contributor fork build the example green. Add `pnpm build:deploy` = `check:placeholder && vite build`, used by the Pages workflow. The canonical repo's CI asserts the guard **rejects** the shipped example (a negative test) — that is what proves the guard is wired up. `CHAI_ALLOW_PLACEHOLDER=1` is the documented escape hatch for previewing a deploy.
+**Consequences:** Two build entry points to keep straight. Detection is case- and whitespace-insensitive, so "editing" only the capitalisation still fails. The canonical repo must not publish a live demo from the placeholder config; if a public demo is ever wanted it needs either a real VPA or an unmissable "example only — do not send money" banner, per ADR-008's spirit.
+
+## ADR-014: Toolchain — exact pins, current majors, Node 24
+**Context:** ARCHITECTURE.md specified Vite 6 and CLAUDE.md specified Node 20+. At scaffolding time the registry had moved considerably, and `@vitejs/plugin-react@6` declares `peerDependencies: { vite: "^8.0.0" }` — Vite 6 and 7 will not install with it.
+**Decision:** Vite 8, TypeScript 7, Zod 4, Vitest 4, Tailwind 4, Node 24 (`engines`, `.nvmrc`, `.node-version`, CI `node-version-file`). React stays pinned to 18.x including `@types/react` 18.x, per ADR-004. All dependencies are exact-pinned, no carets.
+**Consequences:** Records a visible deviation from a written doc, forced by a hard peer constraint rather than preference. `@types/react` must never drift to 19.x while React is 18. `@vitest/coverage-v8` must track `vitest` exactly. Node 24 strips TypeScript types natively, which is why `scripts/check-config.mts` needs no `tsx`/`ts-node` dependency.
+
+## ADR-015: The framework-free core emits error codes and is exempt from the `strings.ts` rule
+**Context:** CLAUDE.md requires all user-visible strings to live in `src/strings.ts`. But `src/lib/upi.ts` and `src/config/*` must stay import-free so they can be extracted to `packages/core` for the v1 widget (ADR-004), and config errors are creator-facing build output rather than page copy.
+**Decision:** The core emits a stable `UpiErrorCode` plus developer-facing English; UI copy is keyed off the code in `strings.ts`. Config validation messages live in the schema. The `Buy {name} a chai` `meta.title` default is derived in the schema too, because it is needed before React mounts.
+**Consequences:** Two documented exceptions to a hard convention, noted in the `strings.ts` header so nobody "fixes" them. i18n later translates by code, not by string matching. Note the deliberate layering difference: the schema *rejects* a `creator.name` over 50 characters at build time, while `sanitizeName` *truncates* at runtime — build-time and runtime have different jobs.
+
+## ADR-016: `defineConfig` is an identity function; two error surfaces by design
+**Context:** `defineConfig` could validate at authoring time. If it did, an invalid config would throw a raw `ZodError` during module evaluation, before `load.ts` could format it.
+**Decision:** `defineConfig` is a typed identity function and never parses. Validation happens exactly once, in `parseConfig`. Build enforcement is the `chai-config-validator` Vite plugin, because a bundler only bundles modules — it never executes them, so a module-scope `throw` in app code does **not** fail `vite build`.
+**Consequences:** Creators always see the CONFIG.md-formatted block, never a Zod stack. TypeScript catches shape and typo mistakes in the editor; Zod catches value mistakes at build; neither can do the other's job. `src/config/load.ts` is kept side-effect-free so build scripts can `try`/`catch` it, with the app's singleton isolated in `src/config/config.ts`.

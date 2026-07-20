@@ -33,7 +33,9 @@ Owner: `shivams136`. Canonical repo: `github.com/shivams136/buy-me-a-chai`.
 
 ## UPI domain knowledge (do not "fix" these)
 
-- UPI URI format: `upi://pay?pa=<vpa>&pn=<name>&am=<amount>&cu=INR&tn=<note>`. `am` uses 2 decimals. `tn` ≤ 60 chars, URL-encoded, avoid special chars beyond spaces (some apps choke).
+- UPI URI format: `upi://pay?pa=<vpa>&pn=<name>&am=<amount>&cu=INR&tn=<note>`. `am` uses 2 decimals. `tn` ≤ 60 **decoded code points** (ADR-012), percent-encoded, avoid special chars beyond spaces (some apps choke).
+- Encode with `encodeURIComponent`, **never `URLSearchParams`** — it emits `+` for a space, which UPI apps show literally (ADR-010). Encode `pn` and `tn` only; `pa`/`am`/`cu` are emitted verbatim.
+- Amounts are whole rupees only; fractional amounts are rejected (ADR-011).
 - Do NOT add `mc` (merchant code) or `tr` params for P2P — they can trigger merchant-verification failures.
 - Amount in QR is a convenience; some apps let donors edit it. That's fine.
 - Deeplink flakiness on GPay/PhonePe is a **platform policy, not our bug**. Don't add retry loops or user-agent hacks that pretend to solve it; keep honest fallback UX.
@@ -41,10 +43,13 @@ Owner: `shivams136`. Canonical repo: `github.com/shivams136/buy-me-a-chai`.
 
 ## Tech stack (see ARCHITECTURE.md for detail)
 
-- Vite + React 18 + TypeScript strict. No Next.js (no SSR needed; static only).
-- Tailwind CSS v4. Zod for config validation. `qrcode` package for QR (client-side).
-- Vitest + Testing Library for unit tests; the UPI URI builder and config validator must have 100% branch coverage.
-- pnpm. Node 20+. Monorepo later (v1 widget) via pnpm workspaces — v0 is a single package, don't prematurely restructure.
+- Vite 8 + React 18 + TypeScript strict. No Next.js (no SSR needed; static only).
+- Tailwind CSS v4 (CSS-first: `@tailwindcss/vite` + `@import "tailwindcss"`, no `tailwind.config.js`). Zod v4 for config validation (`z.strictObject`). `qrcode` package for QR (client-side, lands in Session 2).
+- Vitest + Testing Library for unit tests; the UPI URI builder and config validator must have 100% branch coverage (enforced by `coverage.thresholds` in `vite.config.ts`).
+- Biome for lint + format (`pnpm lint`). It enforces the conventions below that `tsc` cannot — no `any`, no stray default exports.
+- pnpm. **Node 24** (`.nvmrc`, `.node-version`, `engines`). Node 24 strips TypeScript types natively, which is why build scripts run as plain `node scripts/*.mts` with no `tsx`/`ts-node`.
+- Monorepo later (v1 widget) via pnpm workspaces — v0 is a single package, don't prematurely restructure.
+- Exact-pinned dependency versions, no carets. See ADR-014 for why the stack tracks current majors.
 
 ## Conventions
 
@@ -61,7 +66,7 @@ Owner: `shivams136`. Canonical repo: `github.com/shivams136/buy-me-a-chai`.
 - Before implementing, restate which PRD requirement IDs (e.g. P0.5) the change covers.
 - Prefer rebuilding a messy module cleanly over patching it incrementally (owner preference).
 - When ambiguous, choose the option that keeps the project simpler/static and note the decision as a proposed ADR in `docs/DECISIONS.md`.
-- Run `pnpm typecheck && pnpm test && pnpm build` before declaring any task done. The build must succeed with the example config.
+- Run `pnpm verify` (= `lint && typecheck && test && build`) before declaring any task done. The build must succeed with the example config.
 
 ## Testing payments (manual, documented in SETUP.md)
 
