@@ -48,11 +48,73 @@ function chaiConfigValidator(): Plugin {
   };
 }
 
+const HTML_ESCAPES: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+};
+const escapeHtml = (value: string): string =>
+  value.replace(/[&<>"']/g, (c) => HTML_ESCAPES[c] ?? c);
+
+/**
+ * Injects the creator's real VPA into the `<noscript>` block (P0.7).
+ *
+ * The copy-UPI-ID path is the one guaranteed way to pay (ADR-006), and with JS off
+ * it is the *only* one — so the served HTML must carry the actual UPI ID, not a
+ * generic "copy the ID" sentence. React can't help here: it never mounts without
+ * JS, and its output is not in the served document anyway. So the VPA is baked into
+ * index.html at build time instead.
+ *
+ * The noscript copy lives here rather than in `src/strings.ts` for the same reason
+ * `meta.title`'s default lives in the schema (ADR-015): it is needed before — or
+ * entirely without — a React mount, so it cannot depend on the UI string layer.
+ *
+ * Any failure leaves the static fallback noscript from index.html untouched.
+ */
+function chaiNoscript(): Plugin {
+  return {
+    name: 'chai-noscript',
+    transformIndexHtml: {
+      order: 'pre',
+      async handler(html) {
+        try {
+          const [{ default: raw }, { parseConfig }] = await Promise.all([
+            import('./chai.config.ts'),
+            import('./src/config/load.ts'),
+          ]);
+          // envSubstituted: false — plain Node, so analytics stays invisible here;
+          // we only read creator fields, which do not depend on it.
+          const { config } = parseConfig(raw, { envSubstituted: false });
+          const vpa = escapeHtml(config.creator.vpa);
+          const title = escapeHtml(config.meta.title);
+
+          const block = `<noscript>
+      <div style="max-width:480px;margin:40px auto;padding:24px;font-family:system-ui,-apple-system,sans-serif;text-align:center;color:#2b1d14;">
+        <p style="margin:0;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;font-weight:600;color:#c4622d;">0% commission &middot; straight to UPI</p>
+        <h1 style="margin:8px 0 12px;font-size:22px;">${title}</h1>
+        <p style="margin:0;font-size:14px;line-height:1.6;color:#6b5647;">This page builds the UPI QR with JavaScript, which is turned off. You can still pay &mdash; open any UPI app and send to this UPI ID:</p>
+        <p style="margin:16px 0;padding:12px 16px;border-radius:12px;background:#fbeadf;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:16px;font-weight:700;word-break:break-all;">${vpa}</p>
+        <p style="margin:0;font-size:12px;color:#6b5647;">Payments go directly to the creator's UPI. No middleman, no fees.</p>
+      </div>
+    </noscript>`;
+
+          return html.replace(/<noscript>[\s\S]*?<\/noscript>/, block);
+        } catch {
+          // Keep the static fallback in index.html.
+          return html;
+        }
+      },
+    },
+  };
+}
+
 export default defineConfig({
   // GitHub Pages subpath (hard rule 7). The deploy workflow sets
   // BASE_PATH=/${repo-name}/ so renamed forks work untouched.
   base: process.env.BASE_PATH ?? '/',
-  plugins: [react(), tailwindcss(), chaiConfigValidator()],
+  plugins: [react(), tailwindcss(), chaiConfigValidator(), chaiNoscript()],
   build: {
     outDir: 'dist',
     target: 'es2022',

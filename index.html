@@ -12,9 +12,13 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Replaced at build time with the creator's real UPI ID by the
+         chai-noscript plugin (vite.config.ts). This static copy is the fallback
+         if that injection ever fails. -->
     <noscript>
       This page needs JavaScript to generate the UPI QR code. You can still pay by copying the UPI
-      ID into any UPI app.
+      ID shown on this page into any UPI app. Payments go directly to the creator's UPI — no
+      middleman, no fees.
     </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>

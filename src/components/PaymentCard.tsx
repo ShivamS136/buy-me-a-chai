@@ -4,17 +4,14 @@ import type { ChaiConfig } from '../config/schema.ts';
 import { useUpiIntent } from '../hooks/useUpiIntent.ts';
 import { formatRupees, parseRupees, presetAmount, sanitizeAmountInput } from '../lib/amount.ts';
 import { MAX_NOTE_LENGTH } from '../lib/upi.ts';
-import { strings, upiErrorStrings } from '../strings.ts';
-import { QrCode } from './QrCode.tsx';
+import { strings } from '../strings.ts';
+import { PayZone } from './PayZone.tsx';
 
 /**
- * The payment card — amount selection (P0.3), donor message (P0.4) and the live
- * QR (P0.5).
- *
- * Session 2 renders the QR inline, which is the desktop-primary layout. Session 3
- * replaces this block with `PayZone`, which branches by device and adds the
- * deeplink and copy-VPA paths. The three paths are peers by rule (hard rule 3);
- * this card is simply not the device-aware layer yet.
+ * The payment card — amount selection (P0.3) and donor message (P0.4) above the
+ * tear; everything payable below it (P0.5, P0.6, P0.7) is delegated to `PayZone`,
+ * which branches by device between the QR, deeplink and copy-VPA paths (all peers
+ * by hard rule 3).
  *
  * Self-contained at 480px because it becomes `<chai-widget>` in v1 (DESIGN.md).
  *
@@ -84,15 +81,6 @@ export function PaymentCard({ config }: PaymentCardProps): JSX.Element {
   };
 
   const messageLength = Array.from(message).length;
-  // Displayed from the URI's own `am`, so what the donor reads is what is encoded.
-  const payableRupees = intent === null ? null : Number.parseInt(intent.amount, 10);
-
-  /** Copy shown in place of the QR. `null` when the error list already explains it. */
-  const qrFallbackMessage = (): string | null => {
-    if (amount === null) return strings.amountPrompt;
-    if (intent === null) return null;
-    return strings.qrUnavailable;
-  };
 
   return (
     <section
@@ -216,60 +204,11 @@ export function PaymentCard({ config }: PaymentCardProps): JSX.Element {
         </div>
       )}
 
-      {/* ── Pay zone (P0.5, desktop QR only until Session 3) ──────────── */}
+      {/* ── Pay zone (P0.5, P0.6, P0.7) ───────────────────────────────── */}
       {/* The tear bleeds to the card edges, so it needs the padding cancelled. */}
       <div className="chai-tear -mx-6 mt-7 sm:-mx-7" aria-hidden="true" />
 
-      <div className="mt-7">
-        {/* Errors and the resolved amount both land here, so one polite region
-            announces both as the donor edits. */}
-        <div aria-live="polite">
-          {errors.length > 0 && (
-            <ul className="mb-4 space-y-1 text-[13px] text-chai-error">
-              {errors.map((error) => (
-                <li key={error.code}>{upiErrorStrings[error.code]}</li>
-              ))}
-            </ul>
-          )}
-
-          {intent !== null && payableRupees !== null && (
-            <div className="mb-6 text-center">
-              {/*
-               * Split visually, single sentence for assistive tech. The amount is
-               * the largest thing on the card because it is the one number a
-               * donor must get right; the VPA sits directly under it in
-               * monospace, which is where they verify it (DESIGN.md).
-               */}
-              <p className="sr-only">{strings.payingTo(formatRupees(payableRupees), intent.vpa)}</p>
-              <p aria-hidden="true" className="chai-numeral flex items-start justify-center gap-1">
-                <span className="mt-1.5 text-[26px] font-semibold leading-none text-chai-accent">
-                  ₹
-                </span>
-                <span className="text-[52px] font-bold leading-none tracking-[-0.03em]">
-                  {formatRupees(payableRupees)}
-                </span>
-              </p>
-              <p
-                aria-hidden="true"
-                className="mt-2.5 break-all font-vpa text-[13px] text-chai-muted"
-              >
-                {intent.vpa}
-              </p>
-            </div>
-          )}
-        </div>
-
-        {intent !== null && payableRupees !== null && qr !== null ? (
-          <QrCode
-            svgDataUrl={qr.svgDataUrl}
-            alt={strings.qrAlt(intent.vpa, formatRupees(payableRupees))}
-            filename={strings.qrDownloadFilename(intent.vpa, payableRupees)}
-            toPngDataUrl={qr.toPngDataUrl}
-          />
-        ) : (
-          <p className="py-8 text-center text-[13px] text-chai-muted">{qrFallbackMessage()}</p>
-        )}
-      </div>
+      <PayZone intent={intent} errors={errors} qr={qr} />
 
       {/* Never a success state — the limitation is the pitch (DESIGN.md). */}
       <p className="mt-7 text-balance text-center text-[12px] leading-relaxed text-chai-muted">

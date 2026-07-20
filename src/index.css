@@ -165,8 +165,25 @@
   animation: chai-fade-in 150ms ease-out;
 }
 
+/* Copy-toast slide-up (DESIGN.md §Motion). */
+@keyframes chai-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.chai-toast-in {
+  animation: chai-toast-in 180ms ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .chai-fade-in {
+  .chai-fade-in,
+  .chai-toast-in {
     animation: none;
   }
 }
