@@ -121,6 +121,47 @@ export const strings = {
     "Complete the payment in your UPI app. This page can't confirm payments — that's why it's commission-free 🙂",
 
   amountPrompt: 'Pick an amount to get your QR code.',
+
+  // ── Page frame — masthead, profile, works, footer (P0.2) ─────────────────────
+
+  /**
+   * The project wordmark in the masthead (ADR-026). This is locked branding — the
+   * core identity every fork carries — as opposed to the creator's own name in the
+   * profile below it. Lowercase on purpose: it reads as a logotype, not a heading.
+   */
+  brandName: 'buy me a chai',
+  /** Skip link target: the payment card is the page's one job (DESIGN.md §1). */
+  skipToPayment: 'Skip to payment',
+  /** Label for the social-links row; the links themselves carry the brand names. */
+  socialsLabel: 'Find me on',
+  /**
+   * Accessible name for any link that opens a new tab — the visual label plus the
+   * new-tab cue screen readers otherwise miss. Used by socials, works and footer.
+   */
+  externalLink: (label: string): string => `${label} (opens in a new tab)`,
+  /** Heading for the works/projects section (P0.2). Hidden entirely when empty. */
+  worksHeading: 'Things I make',
+
+  /**
+   * The project's template links, shown in the masthead and footer (ADR-026,
+   * ADR-027). Both are deletable from source by any fork — the code is public. The
+   * URLs and names live in `src/project.ts` (the one place a fork edits); these are
+   * the labels, keyed off those constants so the maker's name flows through.
+   */
+  poweredBy: (projectName: string): string => `Powered by ${projectName}`,
+  poweredByTagline: 'self-hosted · 0% commission',
+  /**
+   * Masthead CTA. It sells the template, not the source: a visitor who likes this
+   * page can have their own in a click. It is also the link that drives clone
+   * attribution, so it is referral-tagged like the rest (ADR-027).
+   */
+  createYourPage: 'Create your support page',
+  /** Support-link label — the maker's name is the primary variable (`src/project.ts`). */
+  supportMaker: (makerName: string): string => `Support ${makerName}`,
+  /** Inbound referral chip, shown when the page is opened with `?ref=` / `?source=`. */
+  referredVia: (source: string): string => `Referred via ${source}`,
+  /** Always-disclosed (DESIGN.md §Copy): where the money actually goes. */
+  footerDisclosure: "Payments go directly to the creator's UPI. No middleman, no fees.",
 } as const;
 
 /**

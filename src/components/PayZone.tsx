@@ -101,8 +101,10 @@ export function PayZone({ intent, errors, qr }: PayZoneProps): JSX.Element {
                 {formatRupees(payableRupees)}
               </span>
             </p>
-            <p aria-hidden="true" className="mt-2.5 break-all font-vpa text-[13px] text-chai-muted">
-              {intent.vpa}
+            <p aria-hidden="true" className="mt-3">
+              <span className="inline-block break-all rounded-lg bg-chai-accent-soft px-2.5 py-1 font-vpa text-[13px] text-chai-ink">
+                {intent.vpa}
+              </span>
             </p>
           </div>
         )}
@@ -118,7 +120,7 @@ export function PayZone({ intent, errors, qr }: PayZoneProps): JSX.Element {
           <a
             href={intent.uri}
             onClick={markAttempt}
-            className="inline-flex min-h-13 items-center justify-center gap-2 rounded-full bg-chai-accent-strong px-6 text-[15px] font-semibold text-chai-accent-ink shadow-[0_1px_2px_rgb(43_29_20/0.12),0_8px_20px_rgb(163_78_34/0.28)] transition-transform active:scale-[0.99]"
+            className="inline-flex min-h-13 items-center justify-center gap-2 rounded-full bg-chai-accent-strong px-6 text-[15px] font-semibold text-chai-accent-ink shadow-[0_2px_4px_rgb(43_29_20/0.14),0_12px_26px_-6px_rgb(163_78_34/0.45)] transition-transform hover:-translate-y-px active:translate-y-0 active:scale-[0.99]"
           >
             <Smartphone aria-hidden="true" className="h-5 w-5" />
             {strings.payWithUpiApp}

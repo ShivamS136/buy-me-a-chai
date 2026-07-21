@@ -22,15 +22,16 @@ export default defineConfig({
     // initials avatar.
     // avatar: '/avatar.png',
     bio: 'I build **open-source** things and write about them. If something here saved you an afternoon, a chai is a lovely way to say thanks.',
-    socials: [{ label: 'GitHub', url: 'https://github.com/shivams136/buy-me-a-chai' }],
+    socials: [{ label: 'GitHub', url: 'https://github.com/your-handle' }],
   },
 
-  // Delete this array (or leave it empty) to hide the projects section.
+  // Your projects. Replace these with your own — delete the array (or leave it
+  // empty) to hide the section entirely.
   works: [
     {
-      title: 'buy-me-a-chai',
-      description: 'The zero-commission UPI donation page you are looking at',
-      url: 'https://github.com/shivams136/buy-me-a-chai',
+      title: 'My side project',
+      description: 'A thing I built and wrote about',
+      url: 'https://github.com/your-handle/my-project',
     },
   ],
 

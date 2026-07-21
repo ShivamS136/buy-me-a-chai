@@ -5,10 +5,18 @@
  *
  * Two layers on purpose:
  *  1. `:root` holds the semantic values, and is the layer a creator's
- *     `theme.accent` overrides at runtime.
+ *     `theme.accent` overrides at runtime (see src/lib/theme.ts).
  *  2. `@theme inline` maps them to Tailwind utilities. `inline` matters — it
  *     makes utilities emit `var(--chai-*)` rather than baking the value in, so
  *     the dark-mode block below and any runtime override actually take effect.
+ *
+ * Light is the default palette. Dark is applied by TWO paths (ADR-021):
+ *  - `@media (prefers-color-scheme: dark)` for `theme.mode: 'auto'` (the default),
+ *    scoped `:not([data-theme="light"])` so a creator who pinned light wins even on
+ *    a dark OS;
+ *  - `:root[data-theme="dark"]` for `theme.mode: 'dark'`, stamped on <html> at build
+ *    time (flash-free) and re-affirmed at runtime.
+ * The two dark blocks are identical and MUST stay in sync.
  *
  * Keeping the palette in plain custom properties is also what lets the v1 widget
  * reuse it without shipping Tailwind (ARCHITECTURE.md).
@@ -20,7 +28,7 @@
 :root {
   color-scheme: light dark;
 
-  --chai-bg: #fff8f0; /* milk cream */
+  --chai-bg: #faf8f4; /* warm off-white — the brand canvas, not creator-themeable */
   --chai-surface: #ffffff;
   --chai-ink: #2b1d14; /* dark brew — 16.3:1 on surface */
   --chai-ink-muted: #6b5647; /* 6.9:1 on surface */
@@ -43,8 +51,9 @@
   --chai-error: #b3261e; /* 6.5:1 */
 }
 
+/* Dark palette — keep identical to :root[data-theme="dark"] below. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --chai-bg: #1a130e;
     --chai-surface: #241b14;
     --chai-ink: #f3e9df; /* 14.1:1 on surface */
@@ -61,6 +70,32 @@
     --chai-warn: #e3b778; /* 9.1:1 */
     --chai-error: #f2b8b5; /* 9.9:1 */
   }
+}
+
+/* Forced dark (theme.mode: 'dark') — identical to the @media block above. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --chai-bg: #1a130e;
+  --chai-surface: #241b14;
+  --chai-ink: #f3e9df;
+  --chai-ink-muted: #b9a798;
+  --chai-line: rgb(243 233 223 / 0.14);
+  --chai-line-strong: rgb(243 233 223 / 0.3);
+
+  --chai-accent: #e08a4f;
+  --chai-accent-soft: #3a2a1e;
+  --chai-accent-strong: #e08a4f;
+  --chai-accent-ink: #241b14;
+
+  --chai-warn: #e3b778;
+  --chai-error: #f2b8b5;
+}
+
+/* Forced light (theme.mode: 'light') — the :root defaults already carry the
+ * palette; this only pins color-scheme so form controls match. */
+:root[data-theme="light"] {
+  color-scheme: light;
 }
 
 @theme inline {
@@ -93,11 +128,18 @@
 }
 
 @layer base {
+  /*
+   * The canvas is a flat, warm off-white — brand-locked and identical for every fork
+   * (only the accent is creator-themeable, ADR-025). Warmth lives in the accent, the
+   * dark-brew ink and the ☕ marks, never in the background: a tinted canvas is the
+   * one thing a custom accent must not fight, so the page stays clean and whitish.
+   */
   body {
     background-color: var(--chai-bg);
     color: var(--chai-ink);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
   }
 
   /*
@@ -151,6 +193,60 @@
   right: -13px;
 }
 
+/*
+ * Page layout (DESIGN.md §anatomy, ADR-024).
+ *
+ * One grid, two shapes. On mobile it is a single column in reading order —
+ * profile → payment → projects — which is the exact order the DOM already sits in.
+ * On desktop (≥1024px) it becomes two columns: the creator's identity and projects
+ * on the left, the payment ticket alone on the right, spanning both left rows so it
+ * can stay pinned (`position: sticky`) and always-visible while the left scrolls.
+ * The masthead and footer live outside this grid, so they stay full-width.
+ *
+ * grid-template-areas rather than source reordering: it keeps the DOM in reading
+ * order (which is also the mobile order and the tab order) while the payment moves
+ * to its own column purely in the layout.
+ */
+.chai-grid {
+  display: grid;
+  gap: 1.75rem;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "profile"
+    "payment"
+    "works";
+}
+
+.chai-area-profile {
+  grid-area: profile;
+}
+.chai-area-payment {
+  grid-area: payment;
+}
+.chai-area-works {
+  grid-area: works;
+}
+
+@media (min-width: 1024px) {
+  .chai-grid {
+    gap: 2.5rem 2.75rem;
+    grid-template-columns: minmax(0, 1fr) 380px;
+    /*
+     * Three rows, not two. The payment ticket usually stands taller than the
+     * profile + projects stacked beside it; without the trailing `1fr` filler row,
+     * that extra height inflates the profile/works rows and the projects drift to
+     * the vertical middle. The filler soaks up the slack instead, so the left
+     * column stays compact at the top while the ticket spans full height (and has
+     * the room it needs to stay pinned).
+     */
+    grid-template-rows: auto auto 1fr;
+    grid-template-areas:
+      "profile payment"
+      "works   payment"
+      ".       payment";
+  }
+}
+
 /* QR crossfade on regenerate — 150ms, micro only (DESIGN.md §Motion). */
 @keyframes chai-fade-in {
   from {
@@ -163,6 +259,26 @@
 
 .chai-fade-in {
   animation: chai-fade-in 150ms ease-out;
+}
+
+/*
+ * Entrance: sections rise in on load, staggered by the caller. One orchestrated
+ * moment, not scattered effects (DESIGN.md §Motion) — and off entirely under
+ * reduced-motion.
+ */
+@keyframes chai-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.chai-rise {
+  animation: chai-rise 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* Copy-toast slide-up (DESIGN.md §Motion). */
@@ -183,7 +299,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .chai-fade-in,
-  .chai-toast-in {
+  .chai-toast-in,
+  .chai-rise {
     animation: none;
   }
 }

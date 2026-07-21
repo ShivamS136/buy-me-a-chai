@@ -85,7 +85,7 @@ export function PaymentCard({ config }: PaymentCardProps): JSX.Element {
   return (
     <section
       aria-labelledby="chai-payment-heading"
-      className="mx-auto w-full max-w-[480px] rounded-3xl bg-chai-surface p-6 shadow-[0_1px_2px_rgb(43_29_20/0.06),0_12px_32px_rgb(43_29_20/0.08)] ring-1 ring-chai-line sm:p-7"
+      className="mx-auto w-full max-w-[480px] rounded-[28px] bg-chai-surface p-6 shadow-[0_2px_4px_rgb(43_29_20/0.04),0_24px_60px_-18px_rgb(120_60_20/0.24)] ring-1 ring-chai-line sm:p-7"
     >
       <p className="text-balance text-[11px] font-semibold uppercase tracking-[0.16em] text-chai-accent">
         {strings.disclosure}
@@ -121,7 +121,7 @@ export function PaymentCard({ config }: PaymentCardProps): JSX.Element {
                  * fails AA for label-sized text placed on top of it. Ink on the
                  * soft tint is 13.9:1.
                  */}
-                <span className="flex min-h-12 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-2xl border-2 border-chai-line bg-chai-surface py-2 text-chai-ink transition-colors hover:border-chai-line-strong peer-checked:border-chai-accent peer-checked:bg-chai-accent-soft peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-chai-accent">
+                <span className="flex min-h-12 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-2xl border-2 border-chai-line bg-chai-surface py-2 text-chai-ink transition-all duration-150 hover:border-chai-line-strong peer-checked:-translate-y-0.5 peer-checked:border-chai-accent peer-checked:bg-chai-accent-soft peer-checked:shadow-[0_8px_18px_-8px_rgb(120_60_20/0.3)] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-chai-accent">
                   <span aria-hidden="true" className="text-[13px] leading-none text-chai-muted">
                     {strings.presetChipCount(chaiCount)}
                   </span>

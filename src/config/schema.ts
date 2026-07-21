@@ -282,7 +282,7 @@ const creatorSchema = z.strictObject({
   tagline: line(80).optional(),
   avatar: assetPath().optional(),
   bio: block(500).optional(),
-  // Defaults to [] rather than undefined so Header.tsx needs no branch.
+  // Defaults to [] rather than undefined so Profile.tsx needs no branch.
   socials: z
     .array(socialSchema)
     .max(6, { error: 'More than 6 entries — pick your best 6.' })

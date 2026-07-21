@@ -110,11 +110,91 @@ function chaiNoscript(): Plugin {
   };
 }
 
+/**
+ * Bakes the `meta` config into the served `<head>` (P0.2, ADR-022).
+ *
+ * OG/Twitter cards and the document title must be in the *served* HTML: social
+ * crawlers and search bots do not run the bundle, so setting them from React would
+ * be invisible to exactly the consumers that need them. `theme.mode` is stamped as
+ * `data-theme` here too, so a forced light/dark page paints correctly before any JS
+ * (no flash). The accent stays a runtime concern (main.tsx) — it is purely visual
+ * and crawlers do not care.
+ *
+ * String replacement over the `tags` API because `<title>` and the description must
+ * be *replaced*, not appended (a second `<title>` is ignored by browsers). Any
+ * failure leaves the static `index.html` head untouched, same contract as
+ * chai-noscript.
+ */
+function chaiHead(): Plugin {
+  const base = process.env.BASE_PATH ?? '/';
+  const resolveOg = (path: string): string =>
+    /^https?:\/\//i.test(path) ? path : `${base}${path.replace(/^\//, '')}`;
+
+  return {
+    name: 'chai-head',
+    transformIndexHtml: {
+      order: 'pre',
+      async handler(html) {
+        try {
+          const [{ default: raw }, { parseConfig }] = await Promise.all([
+            import('./chai.config.ts'),
+            import('./src/config/load.ts'),
+          ]);
+          const { config } = parseConfig(raw, { envSubstituted: false });
+          const { creator, meta, theme } = config;
+
+          const title = escapeHtml(meta.title);
+          const description = escapeHtml(
+            meta.description ??
+              creator.tagline ??
+              `Support ${creator.name} — payments go straight to their UPI. 0% commission, no middleman.`,
+          );
+          const lang = escapeHtml(meta.language);
+          const themeAttr =
+            theme.mode === 'light' || theme.mode === 'dark' ? ` data-theme="${theme.mode}"` : '';
+          const ogImage =
+            meta.ogImage === undefined ? undefined : escapeHtml(resolveOg(meta.ogImage));
+          const twitterCard = ogImage === undefined ? 'summary' : 'summary_large_image';
+
+          const head = [
+            `<meta property="og:type" content="website" />`,
+            `<meta property="og:title" content="${title}" />`,
+            `<meta property="og:description" content="${description}" />`,
+            ...(ogImage === undefined ? [] : [`<meta property="og:image" content="${ogImage}" />`]),
+            `<meta name="twitter:card" content="${twitterCard}" />`,
+            `<meta name="twitter:title" content="${title}" />`,
+            `<meta name="twitter:description" content="${description}" />`,
+            ...(ogImage === undefined
+              ? []
+              : [`<meta name="twitter:image" content="${ogImage}" />`]),
+            `<meta name="theme-color" content="#faf8f4" media="(prefers-color-scheme: light)" />`,
+            `<meta name="theme-color" content="#1a130e" media="(prefers-color-scheme: dark)" />`,
+          ]
+            .map((tag) => `    ${tag}`)
+            .join('\n');
+
+          return html
+            .replace(/<html\b[^>]*>/, `<html lang="${lang}"${themeAttr}>`)
+            .replace(/<title>[\s\S]*?<\/title>/, `<title>${title}</title>`)
+            .replace(
+              /<meta\s+name="description"[\s\S]*?\/>/,
+              `<meta name="description" content="${description}" />`,
+            )
+            .replace('</head>', `${head}\n  </head>`);
+        } catch {
+          // Keep the static head from index.html.
+          return html;
+        }
+      },
+    },
+  };
+}
+
 export default defineConfig({
   // GitHub Pages subpath (hard rule 7). The deploy workflow sets
   // BASE_PATH=/${repo-name}/ so renamed forks work untouched.
   base: process.env.BASE_PATH ?? '/',
-  plugins: [react(), tailwindcss(), chaiConfigValidator(), chaiNoscript()],
+  plugins: [react(), tailwindcss(), chaiConfigValidator(), chaiNoscript(), chaiHead()],
   build: {
     outDir: 'dist',
     target: 'es2022',

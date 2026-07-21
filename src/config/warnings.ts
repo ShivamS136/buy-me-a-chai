@@ -17,7 +17,11 @@ export interface ChaiWarning {
   readonly message: string;
 }
 
-/** Surface tokens from docs/DESIGN.md. Kept here until the theme lands in Session 4. */
+/**
+ * Surface tokens from docs/DESIGN.md, duplicated here as plain numbers because this
+ * check runs in plain Node (the build config check) where no CSS is available to
+ * read `--chai-surface` from.
+ */
 const LIGHT_SURFACE: Rgb = { r: 0xff, g: 0xff, b: 0xff, a: 1 };
 const DARK_SURFACE: Rgb = { r: 0x24, g: 0x1b, b: 0x14, a: 1 };
 
@@ -36,7 +40,9 @@ const DARK_SURFACE: Rgb = { r: 0x24, g: 0x1b, b: 0x14, a: 1 };
  * warning channel entirely.
  *
  * The 4.5:1 check that genuinely applies — white ink on an accent fill at normal
- * text size — belongs with the a11y pass in Session 4, once there is a button.
+ * text size, e.g. the "Pay" button — is not warned here at all: `src/lib/theme.ts`
+ * *derives* `--chai-accent-strong` to clear 4.5:1 at runtime (ADR-021), so it is
+ * guaranteed rather than something a creator could get wrong and need warning about.
  */
 const MIN_ACCENT_CONTRAST = 3;
 
