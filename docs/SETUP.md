@@ -63,6 +63,8 @@ Green? You're live. Share the link. ☕
 ## Keeping up with the template (optional)
 The template gets improvements — new payment-app fixes, features, dependency bumps. Most creators never need them: a static page that works doesn't rot. But when you *do* want them, you never touch a terminal.
 
+**One-time setup:** GitHub blocks Actions from opening pull requests on new repos. Go to **Settings → Actions → General → Workflow permissions**, tick **Allow GitHub Actions to create and approve pull requests**, and **Save**. Skip it and the update still works — it pushes the branch and the run summary hands you a link to open the PR yourself.
+
 1. Your repo → **Actions** tab → **Update from template** (left sidebar) → **Run workflow**.
 2. It merges the latest template, **keeps your `chai.config.yaml` and `public/` exactly as they are**, checks the result still builds, and opens a **pull request**.
 3. Review the diff, and **Merge** — your page redeploys automatically.

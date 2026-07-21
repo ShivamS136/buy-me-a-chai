@@ -184,8 +184,35 @@ jobs:
           \`\`\`"
           fi
 
-          gh pr create \
+          # Opening the PR needs the repository's "Allow GitHub Actions to create and
+          # approve pull requests" setting, which GitHub leaves OFF on every new repo —
+          # so the *first* run of this button fails here for most creators, with a raw
+          # "Resource not accessible by integration" that explains nothing. By this
+          # point the merge is already pushed and verified, so the work is not lost:
+          # hand back a one-click link instead of a red X (ADR-031's no-terminal
+          # promise has to survive its own last step).
+          if gh pr create \
             --base "$BASE" \
             --head "$BRANCH" \
             --title "Update from template ($UPSTREAM)" \
-            --body "$BODY"
+            --body "$BODY"; then
+            exit 0
+          fi
+
+          COMPARE="${GITHUB_SERVER_URL}/${REPO}/compare/${BASE}...${BRANCH}?expand=1"
+          {
+            echo "### Template update is ready — one click needed"
+            echo ""
+            echo "The merge succeeded and \`pnpm verify\` passed. Only the final step"
+            echo "failed: this repository does not let GitHub Actions open pull"
+            echo "requests, so the branch was pushed but no PR was created."
+            echo ""
+            echo "**Nothing is lost — open it yourself:**"
+            echo ""
+            echo "$COMPARE"
+            echo ""
+            echo "**Or enable the button permanently:** Settings → Actions → General →"
+            echo "Workflow permissions → tick *Allow GitHub Actions to create and"
+            echo "approve pull requests* → Save. Future runs will open the PR for you."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::warning::Branch pushed and verified, but this repo blocks Actions from opening PRs — see the run summary for a one-click link."
