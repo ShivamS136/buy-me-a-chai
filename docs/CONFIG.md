@@ -15,7 +15,8 @@ export default defineConfig({
     avatar: '/avatar.png',                    // optional, path under public/; initials disc if absent
     bio: 'Senior dev from Gurugram. I build **MERN** things and write about system design.',
     // optional, ≤ 500 chars, markdown subset: bold, italics, links
-    socials: [                                // optional, max 6; icon inferred from domain
+    socials: [                                // optional, max 6; brand icon inferred from
+                                              // the domain (simple-icons), globe if unmapped
       { label: 'GitHub', url: 'https://github.com/shivams136' },
       { label: 'X', url: 'https://x.com/…' },
     ],
@@ -40,9 +41,16 @@ export default defineConfig({
   },
 
   theme: {
-    mode: 'auto',                             // 'light' | 'dark' | 'auto' (default)
-    accent: '#C4622D',                        // hex / rgb() / oklch(); contrast-checked at build (warn)
+    mode: 'auto',                             // 'light' | 'dark' | 'auto' (default).
+                                              // light/dark PIN the palette; auto follows the OS
+    accent: '#C4622D',                        // hex / rgb() / oklch(); the ONLY palette knob (ADR-025).
+                                              // Recolours the CTA, borders, focus rings + accent text —
+                                              // never the canvas. Auto-darkened for buttons, lifted for
+                                              // dark mode (ADR-021). Contrast-checked at build (warn).
   },
+  // The background, card surface and ink are brand-locked — the same warm off-white
+  // (light) / dark brew (dark) on every fork — so the project stays recognisable and
+  // no accent can make the page illegible. Only `theme.accent` and `theme.mode` are yours.
 
   analytics: {                                // optional — omit entirely to disable (default)
     provider: 'posthog',
@@ -55,7 +63,8 @@ export default defineConfig({
   meta: {
     title: 'Buy Shivam a chai',               // optional, defaults to `Buy {name} a chai`
     description: 'Support my open-source work — 0% commission, direct UPI.',
-    ogImage: '/og.png',                       // optional
+    ogImage: '/og.png',                       // optional; use an absolute https:// URL for
+                                              // reliable social cards (crawlers need one)
     language: 'en',                           // reserved for future i18n
   },
 });
@@ -70,8 +79,10 @@ export default defineConfig({
 | `chai.basePrice` | int, 1–10000 | Build fails |
 | `chai.presets` | 1–4 unique ints, 1–99, ascending auto-sort | Build fails |
 | `chai.defaultNote` | ≤ 60 code points after trim (same unit the URI builder truncates on) | Build fails (message shows char count) |
-| `theme.accent` | hex (3/4/6/8), `rgb()`/`rgba()`, or a modern colour function (`oklch()`, `lab()`, …) which is accepted but not contrast-checked. Named colours (`teal`) are **not** supported yet — Session 4 | Build fails |
+| `theme.accent` | hex (3/4/6/8), `rgb()`/`rgba()`, or a modern colour function (`oklch()`, `lab()`, …) which is accepted but not contrast-checked. Named colours (`teal`) are **not** supported — use a hex value | Build fails |
 | accent contrast vs surface | ≥ 3:1 (WCAG 1.4.11 non-text — the accent is a fill, not body text) | **Warn only** |
+| `theme.mode` | `light` \| `dark` \| `auto` (default). `light`/`dark` pin the palette via `data-theme`; the accent is derived into contrast-safe `-strong`/`-soft` tokens per surface (ADR-021) | Build fails on any other value |
+| core palette (bg / surface / ink) | Brand-locked — not configurable. Only `theme.accent` recolours the page, and never the canvas (ADR-025) | n/a (no such key) |
 | `analytics.apiKey` empty while provider set | — | Warn + analytics silently disabled (fork-safety) |
 | Unknown top-level keys | `.strict()` (spelled `z.strictObject` in Zod v4) | Build fails, with a did-you-mean suggestion (catches typos like `cretor`) |
 | `chai.basePrice` × largest preset | > `maxAmountWarning` | Warn only |

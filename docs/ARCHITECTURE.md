@@ -9,6 +9,7 @@
 | Styling | Tailwind CSS v4 + CSS custom properties for theme tokens | Tokens make widget theming portable |
 | Validation | Zod v4 (`z.strictObject`) | Config schema = runtime validation + inferred TS types, one source of truth |
 | QR | `qrcode` as an **encoder only**; we render the SVG and PNG ourselves (ADR-017) | No server, no canvas, regenerates per keystroke — and the downloaded bytes are decodable in CI |
+| Icons | Lucide for UI glyphs + `simple-icons` (CC0) for social brand marks | Lucide dropped brand icons in v1; both are inlined path data, no icon CDN (ADR-023) |
 | Tests | Vitest + @testing-library/react + `jsqr` (decode QRs in tests) | URI builder & QR round-trip provable in CI |
 | Package mgr | pnpm (Node 24) | Workspaces-ready for v1 monorepo. Node 24 strips TS types natively, so build scripts need no `tsx`/`ts-node` |
 | CI/CD | GitHub Actions | lint + typecheck + test + build (root **and** subpath) on PR; deploy to Pages on main |
@@ -27,7 +28,7 @@ buy-me-a-chai/
 ├── LICENSE                    # MIT
 ├── chai.config.ts             # ← the creator's file (example ships pre-filled)
 ├── index.html
-├── vite.config.ts             # base: env BASE_PATH || '/'; chai-config-validator + chai-noscript plugins
+├── vite.config.ts             # base: env BASE_PATH || '/'; chai-config-validator + chai-noscript + chai-head plugins
 ├── biome.jsonc                # lint + format
 ├── tsconfig.json              # solution: references app / node / scripts projects
 ├── .nvmrc  .node-version      # Node 24
@@ -46,29 +47,37 @@ buy-me-a-chai/
     ├── App.tsx
     ├── index.css              # @import "tailwindcss" + @theme tokens
     ├── strings.ts             # all user-visible copy
+    ├── project.ts             # MAKER + MAKER_PROJECT constants — origin branding, not config (ADR-027)
     ├── config/
     │   ├── schema.ts          # Zod schema + defineConfig() + inferred types
     │   ├── css-color.ts       # dependency-free CSS colour parse + WCAG contrast
     │   ├── warnings.ts        # WARN-only rules (contrast, CSP, note safety)
     │   ├── load.ts            # pure: parseConfig + CONFIG.md error formatting
     │   └── config.ts          # the app's singleton (throws at import on bad config)
-    ├── lib/
+    ├── lib/                   # framework-free core, except the DOM-touching four below
     │   ├── upi.ts             # buildUpiUri(), validateVpa(), formatAmount()
     │   ├── qr.ts              # matrix + SVG + PNG encoders, no canvas (ADR-017)
     │   ├── amount.ts          # donor input parsing, ₹ formatting (en-IN grouping)
-    │   ├── download.ts        # data: URI → file; the one DOM-touching lib module
-    │   ├── device.ts          # isMobileDevice() single pointer heuristic (ADR-019)
-    │   └── clipboard.ts       # copyText(): async Clipboard API + execCommand fallback
+    │   ├── markdown.ts        # bio markdown subset → AST: bold/italics/http links
+    │   ├── social.ts          # social URL → simple-icons brand mark (ADR-023)
+    │   ├── asset.ts           # config asset path → Vite base (GitHub Pages subpath)
+    │   ├── download.ts        # data: URI → file download (DOM)
+    │   ├── device.ts          # isMobileDevice() single pointer heuristic (DOM, ADR-019)
+    │   ├── clipboard.ts       # copyText(): async Clipboard API + execCommand fallback (DOM)
+    │   ├── referral.ts        # branding-link utm/ref tags + inbound source read (ADR-027)
+    │   └── theme.ts           # accent derivation + data-theme apply (DOM, ADR-021)
     ├── analytics/
     │   ├── types.ts           # AnalyticsAdapter { track(event, props) }
     │   ├── noop.ts            # default; zero imports, zero network
     │   └── posthog.ts         # dynamic import('posthog-js') only when enabled
     ├── components/
-    │   ├── Header.tsx  Bio.tsx  Works.tsx
-    │   ├── PaymentCard.tsx    # amount chips, custom input, message
+    │   ├── Masthead.tsx       # locked brand banner + use-this-template CTA (ADR-026, ADR-027)
+    │   ├── Profile.tsx  Bio.tsx  Works.tsx   # creator identity + trust (left column)
+    │   ├── ReferralNote.tsx   # inbound ?ref=/?source= chip above the grid (ADR-027)
+    │   ├── PaymentCard.tsx    # amount chips, custom input, message (pinned right column)
     │   ├── PayZone.tsx        # device-adaptive QR/deeplink/copy
     │   ├── QrCode.tsx  Toast.tsx
-    │   └── Footer.tsx
+    │   └── Footer.tsx         # repo + maker-support template links (ADR-026, ADR-027)
     └── hooks/
         ├── useUpiIntent.ts    # amount+note → { intent, errors, qr }
         ├── useIsMobile.ts     # useSyncExternalStore over the pointer heuristic
@@ -81,7 +90,7 @@ v1 restructures to pnpm workspaces: `packages/page`, `packages/widget` (Lit web 
 ## Key flows
 
 ### Config → page
-`chai.config.ts` (creator-edited, gitignored? **No** — committed; it's the point of the fork) → parsed with Zod → an invalid config fails the build with a formatted error listing each bad field. Enforcement is the `chai-config-validator` plugin in `vite.config.ts`, **not** an import in app code: a bundler only bundles modules, it never executes them, so a module-scope throw would not fail `vite build` (ADR-016). `src/config/config.ts` additionally throws at module load so `pnpm dev` shows the same block in Vite's overlay. CI runs both the build and a dedicated `pnpm check:config` step. A second plugin, `chai-noscript`, reads the same parsed config and bakes the creator's real VPA into the `<noscript>` block of `index.html`, so a JS-disabled donor still gets a UPI ID to copy (ADR-020).
+`chai.config.ts` (creator-edited, gitignored? **No** — committed; it's the point of the fork) → parsed with Zod → an invalid config fails the build with a formatted error listing each bad field. Enforcement is the `chai-config-validator` plugin in `vite.config.ts`, **not** an import in app code: a bundler only bundles modules, it never executes them, so a module-scope throw would not fail `vite build` (ADR-016). `src/config/config.ts` additionally throws at module load so `pnpm dev` shows the same block in Vite's overlay. CI runs both the build and a dedicated `pnpm check:config` step. A second plugin, `chai-noscript`, reads the same parsed config and bakes the creator's real VPA into the `<noscript>` block of `index.html`, so a JS-disabled donor still gets a UPI ID to copy (ADR-020). A third, `chai-head`, injects the document title, description, `<html lang>`, OG/Twitter cards and a forced `data-theme` from `meta`/`theme` — head tags that must be in the *served* HTML because social crawlers never run the bundle (ADR-022).
 
 ### Amount → payable intent
 ```

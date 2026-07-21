@@ -34,6 +34,23 @@ Or deploy to Vercel: [![Deploy with Vercel](https://vercel.com/button)](https://
 - **Deeplinks are best-effort.** GPay/PhonePe restrict browser `upi://` intents to personal UPI IDs; the page detects likely failures and guides donors to QR / Copy-UPI-ID, which work everywhere.
 - **Taxes:** gifts from non-relatives above ₹50,000/FY are taxable income in India. [Details](docs/SETUP.md#money--tax-notes-india).
 
+## Who owns what — maker vs creator
+
+Two people are involved in every deployed page, and the code names them consistently so it's always clear which one a value belongs to:
+
+| Name | Who | Where it's set |
+|---|---|---|
+| **MAKER** | The author of this template (this repo's owner) | `MAKER` in [`src/project.ts`](src/project.ts) |
+| **MAKER_PROJECT** | This template repository (`buy-me-a-chai`) | `MAKER_PROJECT` in [`src/project.ts`](src/project.ts) |
+| **CREATOR** | You — whoever forks and deploys *their own* page | `creator` in [`chai.config.ts`](chai.config.ts) |
+| **CREATOR_PROJECT** | A project the creator lists on their page | `works` in [`chai.config.ts`](chai.config.ts) |
+
+**Points at the MAKER** — locked branding, the same on every fork, editable only in source: the masthead **Create your support page** CTA links to `MAKER_PROJECT.templateUrl` (GitHub's use-this-template flow, so a visitor who likes the page can have their own); the footer **Powered by buy-me-a-chai** links to `MAKER_PROJECT.repoUrl`, and **Support {maker}** to `MAKER.supportUrl`. All three carry a referral tag (`utm_campaign` = the source project, `utm_source` = the clone's host) so the maker can see clone-driven traffic — no backend, just link params.
+
+**Yours, the CREATOR** — everything else: your name (the `<h1>` and page title), avatar, bio, social links, projects, and, most importantly, **your UPI ID**. Donations go straight to your VPA; they never route through the maker.
+
+To rebrand or remove: edit the two constants in [`src/project.ts`](src/project.ts), or delete the links from `Masthead.tsx` / `Footer.tsx`. The code is public — the branding is the only ask of a free project.
+
 ## Documentation
 
 | | |
