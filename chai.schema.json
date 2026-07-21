@@ -67,7 +67,7 @@
             "type": "string"
           },
           "description": {
-            "description": "A one-line description of the project.",
+            "description": "What the project is. Line breaks are kept. Up to 300 characters.",
             "type": "string"
           },
           "url": {

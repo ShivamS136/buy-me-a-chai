@@ -491,7 +491,7 @@ describe('works', () => {
   const bad: ReadonlyArray<readonly [string, unknown, string]> = [
     ['an empty title', { ...work, title: '  ' }, 'Required.'],
     ['an over-long title', { ...work, title: 'a'.repeat(61) }, '60 max'],
-    ['an over-long description', { ...work, description: 'a'.repeat(121) }, '120 max'],
+    ['an over-long description', { ...work, description: 'a'.repeat(301) }, '300 max'],
     ['a URL without a scheme', { ...work, url: 'tashn.app' }, 'Include https://'],
     ['a non-http URL', { ...work, url: 'ftp://tashn.app' }, 'http(s) URL'],
     ['a relative image', { ...work, image: 'shot.png' }, 'Must start with "/"'],
@@ -502,6 +502,16 @@ describe('works', () => {
 
   it.each(bad)('rejects %s', (_label, value, fragment) => {
     expect(messagesFor({ ...base, works: [value] }).join(' ')).toContain(fragment);
+  });
+
+  // `block()`, not `line()` (ADR-036): a projects list is long-form, so a line break
+  // is content to preserve rather than a typo to reject.
+  it('allows line breaks in a description', () => {
+    const { config } = parseConfig({
+      ...base,
+      works: [{ ...work, description: 'First line.\nSecond line.' }],
+    });
+    expect(config.works[0]?.description).toBe('First line.\nSecond line.');
   });
 
   it('allows a remote image (it only warns)', () => {

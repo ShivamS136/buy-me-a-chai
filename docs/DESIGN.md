@@ -39,14 +39,16 @@ A locked masthead and the footer frame the page full-width. Between them, one gr
 │ Bio (markdown subset)      │  [ custom ₹ ____ ]  │
 │                            │  [ message ______ ] │  ← sticky:
 │ Projects                   │  ──── tear ────     │    the ticket
-│ [card] [card]              │  QR (large, live)   │    stays in
-│ [card] [card]              │  [ Copy UPI ID ]    │    view
+│ ─ title · description      │  QR (large, live)   │    stays in
+│ ─ title · description      │  [ Copy UPI ID ]    │    view
 ├────────────────────────────┴────────────────────┤
 │ powered-by · support the maker         (footer)  │
 └─────────────────────────────────────────────────┘
 ```
 
 **Mobile** — one column, in this order: masthead → profile + socials → payment (QR path) → projects → footer.
+
+Projects are a vertical stack of full-width cards: the **title** is the link, the description runs to 300 characters with line breaks preserved, and an image becomes a 56px thumbnail (ADR-036). The list is free to grow because it comes *after* the payment card on mobile and sits *beside* the sticky ticket on desktop — a long list scrolls past the CTA rather than burying it.
 
 The masthead, grid and footer share a `max-w-[480px] lg:max-w-[1040px]` shell so their edges line up. The masthead's right side carries a single "Create your support page" CTA into the use-this-template flow — the page's own quiet growth loop; the footer carries both the repo credit and the maker's support link. Below `lg` that CTA collapses to its bare glyph, since the phrase cannot share a narrow row with the wordmark. The payment card keeps its own ≤480px max-width, so it stays a clean lift-out for the v1 widget. When the page is opened with an inbound `?ref=`/`?source=`, a small "Referred via …" chip sits above the grid (ADR-027).
 

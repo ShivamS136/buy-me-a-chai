@@ -312,7 +312,11 @@ const workSchema = z.strictObject({
     .superRefine((v, ctx) => {
       if (v.length === 0) issue(ctx, 'Required.');
     }),
-  description: line(120).describe('A one-line description of the project.').optional(),
+  // block(), not line(): a projects list is where a creator explains what a thing
+  // actually is, so line breaks are kept and the cap is long-form (ADR-036).
+  description: block(300)
+    .describe('What the project is. Line breaks are kept. Up to 300 characters.')
+    .optional(),
   url: httpUrl().describe('Where the project lives — repo, site, or write-up.'),
   image: assetPath().describe('Optional thumbnail in public/, e.g. /works/thing.png.').optional(),
 });

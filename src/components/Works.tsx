@@ -4,16 +4,19 @@ import { resolveAsset } from '../lib/asset.ts';
 import { strings } from '../strings.ts';
 
 /**
- * The works/projects strip (P0.2).
+ * The works/projects list (P0.2, ADR-036).
  *
- * A horizontal, scroll-snapped rail rather than a vertical list (DESIGN.md
- * §anatomy): the works are trust content that sits *above* the payment card, so
- * their height must stay bounded no matter how many a creator lists — otherwise a
- * 12-project list would bury the one CTA that matters (DESIGN.md §1). Hidden
- * entirely when empty; no placeholder (DESIGN.md §Empty states).
+ * A vertical stack of full-width cards rather than a fixed-width card rail:
+ * descriptions are long-form (up to 300 characters, line breaks preserved), and a
+ * 200px card could only ever show a clipped teaser of one. The height this frees is
+ * safe to spend — works sit *after* the payment card in the mobile grid order and
+ * *beside* a sticky ticket on desktop (ADR-024), so a long list scrolls past the CTA
+ * instead of burying it (DESIGN.md §1). Hidden entirely when empty; no placeholder.
  *
- * Each card is one big link. The visible title is the accessible name; the new-tab
- * cue is folded into the aria-label so it isn't lost on screen readers.
+ * The **title** is the link, not the whole row. With a paragraph of description
+ * beside it, wrapping the row in one anchor would make that text unselectable, give
+ * the link an unreasonably long accessible name, and permanently rule out rendering
+ * markdown in the description, since nested anchors are invalid HTML.
  */
 export interface WorksProps {
   readonly works: readonly ChaiWork[];
@@ -31,38 +34,36 @@ export function Works({ works }: WorksProps): JSX.Element | null {
         {strings.worksHeading}
       </h2>
 
-      {/* Two shapes, one list. On mobile a horizontal scroll-snap rail whose `-mx`/
-          `px` bleed lets a scrolled card peek in from the side (space is scarce above
-          the CTA); on desktop, where the left column is wide, it unfolds into a plain
-          two-column grid so every project is visible at once. */}
-      <ul className="-mx-1 mt-3 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2 lg:mx-0 lg:grid lg:grid-cols-2 lg:overflow-visible lg:px-0 lg:pb-0">
+      <ul className="flex flex-col gap-3 mt-1 pt-3 border-t border-chai-line">
         {works.map((work) => (
-          <li key={work.url} className="w-[200px] shrink-0 snap-start lg:w-auto">
-            <a
-              href={work.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={strings.externalLink(work.title)}
-              className="group block h-full overflow-hidden rounded-2xl border border-chai-line bg-chai-surface transition-all duration-200 hover:-translate-y-0.5 hover:border-chai-accent hover:shadow-[0_12px_26px_-14px_rgb(120_60_20/0.32)]"
-            >
-              {work.image !== undefined && (
-                <img
-                  alt=""
-                  src={resolveAsset(work.image)}
-                  className="aspect-video w-full object-cover"
-                />
-              )}
-              <div className="p-3.5">
-                <h3 className="text-[14px] font-semibold leading-snug text-chai-ink group-hover:text-chai-accent-strong">
+          <li key={work.url} className="flex gap-3.5 p-3 bg-chai-surface rounded-lg shadow">
+            {work.image !== undefined && (
+              <img
+                alt=""
+                src={resolveAsset(work.image)}
+                className="h-14 w-14 shrink-0 rounded-xl object-cover"
+              />
+            )}
+            {/* min-w-0 lets a long unbroken word wrap instead of stretching the row. */}
+            <div className="min-w-0">
+              <h3 className="text-[14px] font-semibold leading-snug text-chai-ink">
+                <a
+                  href={work.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={strings.externalLink(work.title)}
+                  className="underline-offset-2 hover:text-chai-accent-strong hover:underline"
+                >
                   {work.title}
-                </h3>
-                {work.description !== undefined && (
-                  <p className="mt-1 line-clamp-2 text-[12px] leading-snug text-chai-muted">
-                    {work.description}
-                  </p>
-                )}
-              </div>
-            </a>
+                </a>
+              </h3>
+              {work.description !== undefined && (
+                // whitespace-pre-line honours the line breaks `block()` now allows.
+                <p className="mt-1 whitespace-pre-line text-[12px] leading-relaxed text-chai-muted">
+                  {work.description}
+                </p>
+              )}
+            </div>
           </li>
         ))}
       </ul>

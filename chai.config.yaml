@@ -29,7 +29,11 @@ creator:
 # Your projects. Replace with your own, or delete the list to hide the section.
 works:
   - title: My side project
-    description: A thing I built and wrote about
+    # Up to 300 characters, and your line breaks are kept — `>-` flows one
+    # paragraph, `|-` keeps the breaks exactly as you type them.
+    description: >-
+      A thing I built and wrote about. There is room for a couple of sentences
+      here, so say what it actually does and who it is for.
     url: https://github.com/your-handle/my-project
 
 chai:

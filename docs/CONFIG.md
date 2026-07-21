@@ -24,7 +24,7 @@ creator:
 
 works:                                # optional, max 12; section hidden if empty
   - title: Tashn                      # required, ≤ 60
-    description: Workplace foosball tracker   # optional, ≤ 120
+    description: Workplace foosball tracker   # optional, ≤ 300, line breaks kept
     url: https://tashn.app            # required
     image: /works/tashn.png           # optional
 
