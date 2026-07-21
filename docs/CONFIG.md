@@ -12,7 +12,7 @@ The config is **YAML, not code** (ADR-030). Your editor reads `chai.schema.json`
 creator:
   name: Shivam Sharma                 # required, 1–50 chars — also the UPI pn param
   vpa: shivam@okaxis                  # required — build fails on invalid format
-  tagline: Building open-source tools ☕   # optional, ≤ 80 chars
+  tagline: Building open-source tools ☕   # optional, ≤ 120 chars
   avatar: /avatar.png                 # optional, path under public/; initials disc if absent
   bio: >-                             # optional, ≤ 500 chars, markdown subset: bold, italics, links
     Senior dev from Gurugram. I build **MERN** things and write about system design.
@@ -24,7 +24,7 @@ creator:
 
 works:                                # optional, max 12; section hidden if empty
   - title: Tashn                      # required, ≤ 60
-    description: Workplace foosball tracker   # optional, ≤ 300, line breaks kept
+    description: Workplace foosball tracker   # optional, ≤ 500, line breaks kept
     url: https://tashn.app            # required
     image: /works/tashn.png           # optional
 

@@ -55,7 +55,17 @@ describe('findPlaceholders', () => {
   });
 });
 
-describe('the shipped chai.config.yaml', () => {
+/**
+ * Canonical repo only (ADR-037).
+ *
+ * A creator's repo runs this suite too — `update-template.yml` gates its pull request
+ * on `pnpm verify` — and their config is, correctly, no longer the example. Asserting
+ * "the live config still holds placeholders" therefore failed for every creator who
+ * completed onboarding, which broke the update path outright. CI sets
+ * `CHAI_CANONICAL=1` only on the template repo, where the assertion still earns its
+ * keep: it catches the example drifting away from the detector's value lists.
+ */
+describe.skipIf(process.env.CHAI_CANONICAL !== '1')('the shipped chai.config.yaml', () => {
   it('IS flagged — this is the guard working as designed', () => {
     // The example must build green in CI (so we know it is valid) but must never
     // deploy. If this assertion ever fails, the guard has stopped protecting forks.

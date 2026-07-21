@@ -287,7 +287,7 @@ const creatorSchema = z.strictObject({
   vpa: vpaSchema.describe(
     'Your UPI ID, like name@okaxis. Copy it from your UPI app — this is where money goes. Never edit it by hand.',
   ),
-  tagline: line(80).describe('A one-line tagline shown under your name.').optional(),
+  tagline: line(120).describe('A one-line tagline shown under your name.').optional(),
   avatar: assetPath()
     .describe('Path to a square avatar in public/, e.g. /avatar.png. Omit for an initials disc.')
     .optional(),
@@ -314,8 +314,8 @@ const workSchema = z.strictObject({
     }),
   // block(), not line(): a projects list is where a creator explains what a thing
   // actually is, so line breaks are kept and the cap is long-form (ADR-036).
-  description: block(300)
-    .describe('What the project is. Line breaks are kept. Up to 300 characters.')
+  description: block(500)
+    .describe('What the project is. Line breaks are kept. Up to 500 characters.')
     .optional(),
   url: httpUrl().describe('Where the project lives — repo, site, or write-up.'),
   image: assetPath().describe('Optional thumbnail in public/, e.g. /works/thing.png.').optional(),

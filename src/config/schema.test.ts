@@ -51,7 +51,16 @@ describe('the shipped chai.config.yaml', () => {
   it('parses successfully — a fork must start from a valid config', () => {
     expect(() => parseConfig(shippedConfig)).not.toThrow();
   });
+});
 
+/**
+ * Canonical repo only (ADR-037). Everything below describes the *template's own
+ * example values* — presets, branding, the placeholder VPA — which a creator is
+ * supposed to replace. A creator's repo runs this suite too (`update-template.yml`
+ * gates its PR on `pnpm verify`), so asserting them unconditionally failed for every
+ * creator who onboarded. CI sets `CHAI_CANONICAL=1` only on the template repo.
+ */
+describe.skipIf(process.env.CHAI_CANONICAL !== '1')('the template example', () => {
   it('applies every documented default', () => {
     const { config } = parseConfig(shippedConfig);
     expect(config.chai.presets).toEqual([
@@ -491,7 +500,7 @@ describe('works', () => {
   const bad: ReadonlyArray<readonly [string, unknown, string]> = [
     ['an empty title', { ...work, title: '  ' }, 'Required.'],
     ['an over-long title', { ...work, title: 'a'.repeat(61) }, '60 max'],
-    ['an over-long description', { ...work, description: 'a'.repeat(301) }, '300 max'],
+    ['an over-long description', { ...work, description: 'a'.repeat(501) }, '500 max'],
     ['a URL without a scheme', { ...work, url: 'tashn.app' }, 'Include https://'],
     ['a non-http URL', { ...work, url: 'ftp://tashn.app' }, 'http(s) URL'],
     ['a relative image', { ...work, image: 'shot.png' }, 'Must start with "/"'],
@@ -580,7 +589,7 @@ describe('creator optional fields', () => {
   });
 
   it('rejects an over-long tagline', () => {
-    expect(messagesFor(withCreator({ tagline: 'a'.repeat(81) })).join(' ')).toContain('80 max');
+    expect(messagesFor(withCreator({ tagline: 'a'.repeat(121) })).join(' ')).toContain('120 max');
   });
 
   it('rejects an over-long bio', () => {

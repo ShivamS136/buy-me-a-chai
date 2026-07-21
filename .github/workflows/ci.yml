@@ -47,6 +47,12 @@ jobs:
       - name: Test with coverage
         # Enforces 100% branch coverage on the UPI builder and the config validator.
         run: pnpm test:coverage
+        env:
+          # Unlocks the assertions that describe the *template's own example* config
+          # (ADR-037) — its presets, branding and placeholder VPA. They are skipped
+          # everywhere else, because a creator's repo runs this same suite and their
+          # config is, correctly, no longer the example.
+          CHAI_CANONICAL: ${{ github.repository == 'ShivamS136/buy-me-a-chai' && '1' || '' }}
 
       - name: Validate the example config
         run: pnpm check:config
@@ -55,6 +61,11 @@ jobs:
         run: pnpm build
 
       - name: Assert a disabled build ships no analytics bytes
+        # Canonical only (ADR-037): this asserts a property of the *example* config,
+        # which declares no analytics. A creator who enables PostHog ships that chunk
+        # on purpose, and would otherwise fail their own CI for configuring the
+        # product correctly.
+        if: github.repository == 'ShivamS136/buy-me-a-chai'
         # Hard rule 4 says a disabled build makes no network calls; ADR-028 goes
         # further and says the code is not even there. The example config declares no
         # `analytics` block, so `__CHAI_ANALYTICS__` folds to false and Rollup drops
@@ -86,6 +97,10 @@ jobs:
           echo "✓ assets are rewritten under the Pages subpath"
 
       - name: Assert the placeholder guard rejects the shipped example
+        # Canonical only (ADR-037): a creator replaces the example, so `check:placeholder`
+        # correctly exits 0 in their repo and this negative test would invert into a
+        # permanent red CI for having onboarded successfully.
+        if: github.repository == 'ShivamS136/buy-me-a-chai'
         # A NEGATIVE test, and the point of the whole guard. This repo ships an
         # example config with `yourname@bank`, which is a valid VPA *format* and so
         # passes the schema on purpose. If this step ever succeeds, the guard has
