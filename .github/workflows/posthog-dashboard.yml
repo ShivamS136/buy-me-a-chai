@@ -1,0 +1,136 @@
+name: Set up PostHog dashboard
+
+# Creates (or updates) the "Chai Analytics ☕" dashboard in your PostHog project from
+# the Actions tab — no terminal, no clone (ADR-038, the same promise ADR-031 makes for
+# template updates). It runs scripts/posthog-dashboard.mjs, which is dependency-free,
+# so this job installs nothing.
+#
+# ONE-TIME SETUP — add your PostHog *personal* API key as a repository SECRET named
+# POSTHOG_PERSONAL_API_KEY (Settings → Secrets and variables → Actions → Secrets):
+#
+#   * It must be a SECRET. Not a variable — those are readable by anyone who can see
+#     the repo. And not a workflow input — inputs are echoed into the run UI and logs,
+#     which is exactly how a key leaks.
+#   * It is the `phx_…` key from PostHog → Settings → Personal API keys, with scopes
+#     `dashboard:write` and `insight:write`. This is NOT the `phc_…` project key your
+#     page uses to send events; that one only writes events and is public by design.
+#   * Delete it once the dashboard exists if you prefer — the dashboard persists, and
+#     re-running this workflow only needs the key again.
+#
+# Self-hosted PostHog is not in the dropdown below: run the script directly with your
+# own POSTHOG_HOST (see docs/ANALYTICS.md, Path A).
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_id:
+        description: PostHog project ID — leave blank to use the POSTHOG_PROJECT_ID repository variable
+        required: false
+      host:
+        description: Which PostHog cloud you signed up on
+        required: true
+        type: choice
+        default: https://us.posthog.com
+        options:
+          - https://us.posthog.com
+          - https://eu.posthog.com
+
+# This job only talks to PostHog. It never writes to the repository, so it takes no
+# write scope at all — checkout is the only reason it touches the repo.
+permissions:
+  contents: read
+
+# The script is idempotent by name+tag, but two concurrent runs could still race into
+# duplicate insights. One at a time.
+concurrency:
+  group: posthog-dashboard
+  cancel-in-progress: false
+
+jobs:
+  dashboard:
+    name: Create or update the dashboard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Nothing here pushes, so the job has no use for a credential.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          # Single source of truth for the Node version. No pnpm install: the script
+          # is dependency-free and uses only built-in fetch.
+          node-version-file: .nvmrc
+
+      - name: Create or update the dashboard
+        env:
+          # Passed via env and never interpolated into the script below — a
+          # workflow_dispatch input is untrusted text, and the key must not reach a
+          # command line where it could be echoed.
+          POSTHOG_PERSONAL_API_KEY: ${{ secrets.POSTHOG_PERSONAL_API_KEY }}
+          POSTHOG_PROJECT_ID: ${{ inputs.project_id || vars.POSTHOG_PROJECT_ID }}
+          POSTHOG_HOST: ${{ inputs.host }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${POSTHOG_PERSONAL_API_KEY:-}" ]; then
+            {
+              echo "### Missing personal API key"
+              echo ""
+              echo "Add your PostHog **personal** API key as a repository secret named"
+              echo '`POSTHOG_PERSONAL_API_KEY`:'
+              echo ""
+              echo "Settings → Secrets and variables → Actions → Secrets → **New repository secret**"
+              echo ""
+              echo "Get it from PostHog → Settings → Personal API keys, with scopes"
+              echo '`dashboard:write` and `insight:write`. It starts `phx_` — this is'
+              echo 'not the `phc_` key your page uses to send events.'
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::POSTHOG_PERSONAL_API_KEY secret is not set — see the run summary."
+            exit 1
+          fi
+
+          if ! printf '%s' "${POSTHOG_PROJECT_ID:-}" | grep -Eq '^[0-9]+$'; then
+            {
+              echo "### Project ID missing or not a number"
+              echo ""
+              echo "Find it in PostHog → Settings → Project → **Project ID** (a plain number)."
+              echo "Pass it in the *Run workflow* form, or set a \`POSTHOG_PROJECT_ID\`"
+              echo "repository variable so future runs are one click."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::POSTHOG_PROJECT_ID must be a number — see the run summary."
+            exit 1
+          fi
+
+          # `2>&1 | tee` so the script's own failure hints land in the log we parse,
+          # and `pipefail` (set above) so a failing script still fails the step.
+          if node scripts/posthog-dashboard.mjs 2>&1 | tee /tmp/dashboard.log; then
+            URL="$(grep -o 'https://[^[:space:]]*/dashboard/[0-9]*' /tmp/dashboard.log | tail -1 || true)"
+            {
+              echo "### Chai Analytics dashboard is ready"
+              echo ""
+              if [ -n "$URL" ]; then
+                echo "$URL"
+                echo ""
+              fi
+              echo "Every number on it measures **intent, not income**. UPI P2P has no"
+              echo "completion callback, so a pay click means a donor *started* a payment —"
+              echo "reconcile against your UPI statement and never read tile 5 as revenue."
+              echo ""
+              echo "You can delete the personal API key now; the dashboard persists."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "### Dashboard setup failed"
+              echo ""
+              echo "The script's output is in the step log above. Common causes:"
+              echo ""
+              echo "- **401 / 403** — the key lacks \`dashboard:write\` / \`insight:write\`,"
+              echo "  or you picked the wrong region in the *Run workflow* form."
+              echo "- **404** — wrong project ID."
+              echo "- **400 schema error** — PostHog changed its query schema; open an issue"
+              echo "  on the template repo."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::Dashboard setup failed — see the run summary."
+            exit 1
+          fi

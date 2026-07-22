@@ -63,7 +63,7 @@ Green? You're live. Share the link. ☕
 ## Keeping up with the template (optional)
 The template gets improvements — new payment-app fixes, features, dependency bumps. Most creators never need them: a static page that works doesn't rot. But when you *do* want them, you never touch a terminal.
 
-**One-time setup:** GitHub blocks Actions from opening pull requests on new repos. Go to **Settings → Actions → General → Workflow permissions**, tick **Allow GitHub Actions to create and approve pull requests**, and **Save**. Skip it and the update still works — it pushes the branch and the run summary hands you a link to open the PR yourself.
+**Do this once:** new repos do not let Actions open pull requests. Go to **Settings → Actions → General → Workflow permissions**, tick **Allow GitHub Actions to create and approve pull requests**, and save. If you skip it the update still works — it just gives you a link to open the pull request yourself.
 
 1. Your repo → **Actions** tab → **Update from template** (left sidebar) → **Run workflow**.
 2. It merges the latest template, **keeps your `chai.config.yaml` and `public/` exactly as they are**, checks the result still builds, and opens a **pull request**.
@@ -71,7 +71,7 @@ The template gets improvements — new payment-app fixes, features, dependency b
 
 A few things to know:
 - It only ever changes template code, never your config or your assets — your UPI ID is safe.
-- It always uses one branch, `template-update`. Running it again rewrites that branch and updates the same pull request rather than opening a second one, so update branches never pile up. To have the branch removed once you merge, tick **Settings → General → Pull Requests → Automatically delete head branches**.
+- It always uses the same branch, `template-update`, so update branches never pile up — running it again just updates the same pull request. To delete that branch after you merge, tick **Settings → General → Pull Requests → Automatically delete head branches**.
 - If the template changed its own GitHub Actions files, the PR **can't** include those (GitHub blocks automated edits to workflows); the PR lists them so you can copy them across by hand if you want.
 - If you've edited component source yourself (say, to remove the footer links), those files get the template's version back. That path is for creators who only edit config; if you're editing code, you'll want to resolve those merges yourself.
 
@@ -106,24 +106,21 @@ config flag (ADR-026, ADR-032). The code is public; that choice is yours to make
 - Blog/website button embeds: coming in v1 (`<chai-widget>`), track the [roadmap](./ROADMAP.md).
 
 ## Optional: analytics
-Analytics is **off by default**, and off here means absent: with no `analytics` block your page contains no tracking code at all, makes no requests, and sets nothing in the browser. You can verify that yourself — `pnpm build && grep -rl posthog dist/` finds nothing but error messages.
+Analytics is **off unless you turn it on**. With no `analytics` block, your page has no tracking code in it at all — it makes no requests and stores nothing in the browser.
 
-Want page views and amount-selection counts? Create a free [PostHog](https://posthog.com) account (1M events/month free), then:
-1. Uncomment the `analytics` block in `chai.config.yaml` (see CONFIG.md). You do **not** put the key in the file — it's injected from the environment variable below.
-2. Add your key: repo **Settings → Secrets and variables → Actions → Variables** → `VITE_POSTHOG_KEY` (Pages), or Vercel env var. It's the **project** key, the one starting `phc_` — public by design; it can only write events.
-3. **Get the ready-made dashboard** — one command creates the full "Chai Analytics ☕" dashboard (visitors, intent funnel, popular amounts, pay-method breakdown) in your PostHog project:
-   ```bash
-   POSTHOG_PERSONAL_API_KEY=phx_... POSTHOG_PROJECT_ID=12345 node scripts/posthog-dashboard.mjs
-   ```
-   Prefer asking an AI agent? PostHog ships an MCP server, so you can create the same dashboard
-   conversationally instead — see Path B in [ANALYTICS.md](./ANALYTICS.md). Either way, send a few
-   real events first, or there is nothing for the charts to verify against.
+Want to see how many people visit and which amounts they pick? Make a free [PostHog](https://posthog.com) account (1M events a month, free), then do these three things — all in your browser:
 
-   Details, the manual alternative, and what every chart honestly means: [ANALYTICS.md](./ANALYTICS.md).
+1. **Turn it on.** In `chai.config.yaml`, uncomment the `analytics` block. Your key does *not* go in this file.
+2. **Add your key.** Go to Settings → Secrets and variables → Actions → **Variables** and add `VITE_POSTHOG_KEY`. Use the key that starts with `phc_`; it can only send events, so it is safe to be public. Then push any commit, so the next build picks it up.
+3. **Make the dashboard.** Go to the Actions tab → **Set up PostHog dashboard** → **Run workflow**. It builds a ready-made dashboard — visitors, funnel, popular amounts, pay-method mix — and gives you the link when it finishes.
 
-Your donors are not the product, so the page turns off everything PostHog does by default that would watch them: no autocapture, no session recording, no heatmaps, no surveys. Three events, fixed properties, and a filter that drops anything else before it leaves the browser ([details](./ANALYTICS.md)). Your donors' messages never leave their UPI app's payment note.
+> Step 3 also needs your **personal** key (it starts with `phx_`), saved once as a repo **Secret** called `POSTHOG_PERSONAL_API_KEY`. If it is missing, the workflow tells you where to add it. Click around your live page first, or the charts will be empty.
 
-Heads-up on what analytics *means* here: you'll see views, chosen amounts, and pay-button clicks — **not completed payments**. UPI P2P has no confirmation callback; a "₹500 pay click" is interest, not income. That missing callback is also exactly why nobody (including us) can charge you a commission.
+Would rather use a terminal, an AI agent, or build the charts yourself? Those are Paths A, B and C in [ANALYTICS.md](./ANALYTICS.md) — all of them make the same dashboard.
+
+**What the numbers mean.** You see visits, chosen amounts, and pay-button clicks — **not payments**. UPI cannot tell your page whether a payment went through, so a "₹500 pay click" means someone started paying, not that money arrived. That same gap is why nobody, including us, can take a cut.
+
+**What is never collected.** No autocapture, no session recording, no heatmaps, no surveys. Just three events with fixed fields, and anything else is dropped before it leaves the browser ([details](./ANALYTICS.md)). Donor messages never leave their UPI app.
 
 ## Money & tax notes (India)
 - Payments are person-to-person UPI transfers straight to your account. No middleman, no settlement delay, no fees.

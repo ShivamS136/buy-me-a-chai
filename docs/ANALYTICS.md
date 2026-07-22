@@ -76,13 +76,24 @@ Tile 3 + 4 together are the debugging view for ADR-006: a funnel that dies betwe
 
 | Path | Needs | Best when |
 |---|---|---|
-| **A** — one-command script | A personal API key | You want it done in one command, reproducibly, in CI or a fresh clone |
+| **D** — GitHub Actions button | A personal API key, stored as a repo secret | You never want a terminal. Click *Run workflow* and you're done — **the creator default** |
+| **A** — one-command script | A personal API key | You want it reproducible, from CI or a fresh clone |
 | **B** — PostHog MCP | An AI coding agent (Claude Code, Cursor, …) | You already work in an agent and would rather ask for the dashboard in English — and tweak it conversationally afterwards |
 | **C** — manual | Nothing | You want to see how each insight is built, or you don't want any key/agent involved |
 
-All three produce the same eight tiles. A and B both hit the same PostHog API.
+All four produce the same eight tiles. A, B and D hit the same PostHog API.
 
-### Path A: one-command script (recommended)
+### Path D: the GitHub Actions button (no terminal)
+
+Your repo ships a **Set up PostHog dashboard** workflow. Actions tab → pick it → **Run workflow**, choose your region, done. The run summary links straight to the finished dashboard.
+
+**One-time:** add your personal API key as a repository **secret** named `POSTHOG_PERSONAL_API_KEY` (Settings → Secrets and variables → Actions → **Secrets**), scoped to `dashboard:write` + `insight:write`.
+
+It has to be a *secret* — not a variable, which anyone who can see the repo can read, and not a workflow input, since inputs are echoed into the run UI and logs. That is how keys leak. Optionally set a `POSTHOG_PROJECT_ID` repository **variable** so later runs need nothing typed at all.
+
+Same script and same idempotency as Path A: re-running updates the dashboard instead of duplicating it. The job takes `contents: read` and nothing else — it never writes to your repo. Self-hosted PostHog isn't in the region dropdown; use Path A for that.
+
+### Path A: one-command script (terminal / CI)
 
 ```bash
 POSTHOG_PERSONAL_API_KEY=phx_...  \
