@@ -12,7 +12,9 @@ A self-hosted "Buy Me a Chai" page for Indian creators. Fork it, edit one config
 
 > **Why not Buy Me a Coffee / buymeachai.in / chai4.me?** They sit between you and your supporters — commissions, bugs, privacy questions, platform risk. UPI P2P is already free and instant. This project just gives it a beautiful, embeddable face that *you* own.
 
-<!-- screenshot placeholder: docs/assets/screenshot.png -->
+[![buy-me-a-chai — donation page screenshot](docs/assets/screenshot.png)](https://shivams136.github.io/buy-me-a-chai/)
+
+**🔗 [Live demo](https://shivams136.github.io/buy-me-a-chai/)** — this repo, deployed as-is
 
 ## Features
 
