@@ -104,8 +104,14 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           # A public repo — fetch needs no credentials (there are none persisted).
-          git remote add upstream "https://github.com/$UPSTREAM.git"
-          git fetch --no-tags --quiet upstream
+          # Named `template`, NOT `upstream`, and that is load-bearing: the `gh` CLI
+          # resolves which repository it acts on from the git remotes, and it prefers one
+          # called `upstream` over `origin` (its fork heuristic). A remote by that name
+          # silently redirected every gh call in the publish step at the TEMPLATE repo,
+          # where this token has no access — a 403 that reads exactly like a permissions
+          # problem and is not one (ADR-044). The gh calls now pass --repo as well.
+          git remote add template "https://github.com/$UPSTREAM.git"
+          git fetch --no-tags --quiet template
 
           # One fixed branch, force-pushed below — not a timestamped one per run.
           # Timestamped branches orphaned a branch every time a run failed or could not
@@ -118,13 +124,13 @@ jobs:
           # Prefer the template for code conflicts (-X theirs); --allow-unrelated-histories
           # covers the first-ever merge, when the fork shares no history with the template.
           # --no-commit lets us restore your files before the merge is recorded.
-          git merge --no-commit --allow-unrelated-histories -X theirs upstream/main || true
+          git merge --no-commit --allow-unrelated-histories -X theirs template/main || true
 
           # Your files always win: restore them from your branch tip (still HEAD here).
           git checkout HEAD -- chai.config.yaml 2>/dev/null || true
           git checkout HEAD -- public 2>/dev/null || true
 
-          WF_CHANGED="$(git diff --name-only HEAD upstream/main -- .github/workflows/ || true)"
+          WF_CHANGED="$(git diff --name-only HEAD template/main -- .github/workflows/ || true)"
 
           if [ "${PAT_OK:-}" = "true" ]; then
             # A validated TEMPLATE_PAT may write workflow files, so keep them. Emptying
@@ -285,7 +291,7 @@ jobs:
                 # as well would just queue a second, identical deploy behind the first.
                 :
               else
-                gh workflow run deploy-pages.yml --ref "$BASE" \
+                gh workflow run deploy-pages.yml --repo "$REPO" --ref "$BASE" \
                   || DEPLOY="Applied, but the deploy could not be started automatically — run **Deploy to GitHub Pages** from the Actions tab."
               fi
               {
@@ -334,7 +340,7 @@ jobs:
 
           # The force-push has already updated any pull request open on this branch, so
           # creating a second one would just fail. Reuse it and say so.
-          EXISTING="$(gh pr list --head "$BRANCH" --state open --json url -q '.[0].url' 2>/dev/null || true)"
+          EXISTING="$(gh pr list --repo "$REPO" --head "$BRANCH" --state open --json url -q '.[0].url' 2>/dev/null || true)"
           if [ -n "$EXISTING" ]; then
             echo "Updated the pull request already open on $BRANCH: $EXISTING"
             ready_summary "$EXISTING" "The pull request already open for this update now has the latest template:"
@@ -356,14 +362,16 @@ jobs:
           To stop doing this by hand, see \`TEMPLATE_PAT\` in SETUP.md."
           fi
 
-          # Opening the PR needs the repository's "Allow GitHub Actions to create and
-          # approve pull requests" setting, which GitHub leaves OFF on every new repo —
-          # so the *first* run of this button fails here for most creators, with a raw
-          # "Resource not accessible by integration" that explains nothing. By this
-          # point the merge is already pushed and verified, so the work is not lost:
-          # hand back a one-click link instead of a red X (ADR-031's no-terminal
-          # promise has to survive its own last step).
+          # If this fails it is *probably* the repository's "Allow GitHub Actions to create
+          # and approve pull requests" setting, which GitHub leaves OFF on every new repo.
+          # Probably, not certainly — the identical "Resource not accessible by integration"
+          # was once this workflow aiming gh at the template repo (ADR-044), and that cost a
+          # creator an afternoon of enabling a setting that was already on. So the raw error
+          # is printed above this, and the wording below hedges. By this point the merge is
+          # pushed and verified, so nothing is lost: hand back a one-click link rather than
+          # a red X (ADR-031's no-terminal promise has to survive its own last step).
           if PR_OUT="$(gh pr create \
+            --repo "$REPO" \
             --base "$BASE" \
             --head "$BRANCH" \
             --title "Update from template ($UPSTREAM)" \
@@ -381,9 +389,9 @@ jobs:
           {
             echo "### Template update is ready — one click needed"
             echo ""
-            echo "The merge succeeded and \`pnpm verify\` passed. Only the final step"
-            echo "failed: this repository does not let GitHub Actions open pull"
-            echo "requests, so the branch was pushed but no PR was created."
+            echo "The merge succeeded and \`pnpm verify\` passed. Only the last step failed —"
+            echo "the branch is pushed, but GitHub refused to open the pull request. The"
+            echo "usual reason is the setting below; the exact error is in the job log."
             echo ""
             echo "**Your page has not changed yet, and nothing is lost — open the pull"
             echo "request yourself, then merge it:**"
