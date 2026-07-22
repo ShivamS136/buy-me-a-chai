@@ -79,8 +79,19 @@ A green tick on the run means the update is *ready*, not that it is live: the up
 A few things to know:
 - It only ever changes template code, never your config or your assets — your UPI ID is safe.
 - It always uses the same branch, `template-update`, so update branches never pile up — running it again just updates the same pull request. To delete that branch after you merge, tick **Settings → General → Pull Requests → Automatically delete head branches**.
-- If the template changed its own GitHub Actions files, the PR **can't** include those (GitHub blocks automated edits to workflows); the PR lists them so you can copy them across by hand if you want.
+- If the template changed its own GitHub Actions files, the update **can't** include those — GitHub never lets automation write `.github/workflows/`, no matter what you tick. It gives you two links per file instead: the template's version to copy, and the right editor in your repo to paste it into. To stop doing that by hand, see **`TEMPLATE_PAT`** below.
 - If you've edited component source yourself (say, to remove the footer links), those files get the template's version back. That path is for creators who only edit config; if you're editing code, you'll want to resolve those merges yourself.
+
+### Optional: let updates carry workflow files too (`TEMPLATE_PAT`)
+Only worth doing if the copy-by-hand step above annoys you. It trades a one-time setup for a token that will eventually expire.
+
+1. [github.com/settings/personal-access-tokens/new](https://github.com/settings/personal-access-tokens/new) → **Fine-grained token**.
+2. **Repository access:** *Only select repositories* → pick your page's repo, and nothing else.
+3. **Permissions:** `Contents` → Read and write, `Pull requests` → Read and write, `Workflows` → Read and write. That last one is the whole point; without it the update run stops and tells you so.
+4. Set an expiry you'll actually notice, then create the token and copy it.
+5. Your repo → **Settings → Secrets and variables → Actions → Secrets → New repository secret**, named exactly `TEMPLATE_PAT`.
+
+From then on updates include workflow files like any other file. The run checks the token before it touches anything: if it has expired or been revoked, you get a warning and the update carries on without it — back to copy-by-hand, never a silent skip. Delete the secret whenever you want to go back.
 
 ## Optional: the template's own two links (`branding`)
 Your page carries two small credits to the project that made it — a **Create your support page**
@@ -128,6 +139,31 @@ Would rather use a terminal, an AI agent, or build the charts yourself? Those ar
 **What the numbers mean.** You see visits, chosen amounts, and pay-button clicks — **not payments**. UPI cannot tell your page whether a payment went through, so a "₹500 pay click" means someone started paying, not that money arrived. That same gap is why nobody, including us, can take a cut.
 
 **What is never collected.** No autocapture, no session recording, no heatmaps, no surveys. Just three events with fixed fields, and anything else is dropped before it leaves the browser ([details](./ANALYTICS.md)). Donor messages never leave their UPI app.
+
+## Every secret and variable, in one place
+**A working page needs none of these.** Everything that makes the page *yours* lives in `chai.config.yaml`. This list exists so you can look up a name you saw in a workflow or a log without hunting.
+
+They all live in one screen: your repo → **Settings** → **Secrets and variables** → **Actions**, which has two tabs.
+
+- **Variables** are plain text. Anyone who can see your repo's settings can read them back. Fine for things that end up public anyway.
+- **Secrets** are write-only: once saved, nobody — including you — can read the value again, and GitHub masks it in logs. Use this tab whenever a value would let someone act *as you*.
+
+If you're ever unsure which tab, use **Secrets**. The cost of over-protecting a value is zero.
+
+| Name | Tab | You need it when | What it does |
+|---|---|---|---|
+| `VITE_POSTHOG_KEY` | Variables *(or Secrets)* | You turned on analytics | Your PostHog **project** key, the one starting `phc_`. It gets baked into the page, so it is public by design and cannot do anything but send events. Read at **build** time: set it, then push a commit, or the running site won't have it. Either tab works — the workflow checks Variables first. |
+| `POSTHOG_PERSONAL_API_KEY` | **Secrets** | You use the "Set up PostHog dashboard" button | Your **personal** key, starting `phx_`. This one can read and change your whole PostHog account, so it is a secret and never anything else. Used only by that button, never by your page. |
+| `POSTHOG_PROJECT_ID` | Variables | Optional, same button | Saves you typing the project number on every run. You can type it into the form instead. |
+| `CHAI_BASE_PATH` | Variables | You use a custom domain | Set it to `/`. Without it the build prefixes every file with your repo name and a custom domain serves a blank page. |
+| `CHAI_ALLOW_PLACEHOLDER` | Variables | You want to preview before you have a UPI ID | `1` turns the "you haven't filled in your details" deploy block into a warning. The page then carries a visible demo banner, because a page with the example UPI ID must never look real. Remove it before going live. |
+| `TEMPLATE_PAT` | **Secrets** | Optional, for updates | Lets template updates include workflow files. See the section above for exactly which permissions to give it. |
+
+**Set for you — don't create these yourself:** `SITE_URL` (the deploy reads your real site address from GitHub Pages, and it's what makes shared links show a picture — on Vercel or Netlify you *do* set it by hand, to your site's address), `BASE_PATH` (derived from your repo name), `GITHUB_TOKEN` (GitHub's own, per-run and short-lived), and `CHAI_CANONICAL` (only ever set in the template's own repo).
+
+**Running locally?** The same names work as ordinary environment variables in front of a command — `VITE_POSTHOG_KEY=phc_… pnpm dev`. Nothing is required for `pnpm dev` to work.
+
+Two habits worth keeping: never paste any of these into `chai.config.yaml`, an issue, or a pull request — that file is public and stays public; and nothing here is ever your UPI PIN, bank password or OTP. This project has no way to take a payment, so it never has a reason to ask for one.
 
 ## Money & tax notes (India)
 - Payments are person-to-person UPI transfers straight to your account. No middleman, no settlement delay, no fees.
