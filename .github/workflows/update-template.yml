@@ -48,14 +48,21 @@ jobs:
       # SECURITY: this runs FIRST, before a single byte of upstream content is on disk,
       # and the secret appears in exactly two step environments — this one and the final
       # push. The step that executes merged, upstream-controlled code never sees it.
+      #
+      # The emptiness test is inside the script, not an `if:`, on purpose: `secrets` is
+      # not an available context in a step-level `if`, and referencing it there makes the
+      # WHOLE FILE invalid — GitHub then shows the workflow as its own path instead of its
+      # name, and the run button silently stops working. Step `env:` may read secrets.
       - name: Check your update token, if you set one
         id: pat
-        if: ${{ secrets.TEMPLATE_PAT != '' }}
         env:
           GH_TOKEN: ${{ secrets.TEMPLATE_PAT }}
         run: |
           set -uo pipefail
-          if gh api user -q .login >/dev/null 2>&1; then
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "No TEMPLATE_PAT set — any workflow files the template changed will be listed for you to copy by hand."
+          elif gh api user -q .login >/dev/null 2>&1; then
             echo "ok=true" >> "$GITHUB_OUTPUT"
             echo "TEMPLATE_PAT accepted — workflow files will be included in this update."
           else
