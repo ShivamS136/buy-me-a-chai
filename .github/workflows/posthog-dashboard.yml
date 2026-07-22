@@ -134,6 +134,8 @@ jobs:
               echo "- **404** — wrong project ID."
               echo "- **400 schema error** — PostHog changed its query schema; open an issue"
               echo "  on the template repo."
+              echo "- **500** — nothing you can fix: the script sent something PostHog choked"
+              echo "  on. Open an issue on the template repo with the failing call from the log."
             } >> "$GITHUB_STEP_SUMMARY"
             echo "::error::Dashboard setup failed — see the run summary."
             exit 1

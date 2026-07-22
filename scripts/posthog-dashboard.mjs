@@ -165,6 +165,7 @@ const main = async () => {
   let dashboard = (existing.results || []).find(
     (d) => !d.deleted && (d.name === DASHBOARD_NAME || (d.tags || []).includes(TAG))
   );
+  const reusing = Boolean(dashboard);
   if (dashboard) {
     console.log(`✓ Dashboard exists (id ${dashboard.id}) — updating insights`);
   } else {
@@ -178,9 +179,17 @@ const main = async () => {
     console.log(`✓ Created dashboard (id ${dashboard.id})`);
   }
 
-  // 2. Upsert insights onto the dashboard by name
-  const current = await api('GET', `/insights/?limit=300&dashboards=${dashboard.id}`);
-  const byName = new Map((current.results || []).map((i) => [i.name, i]));
+  // 2. Upsert insights onto the dashboard by name.
+  // `dashboards` is a JSON-encoded ARRAY of ids. A bare `?dashboards=842020` is
+  // still valid JSON — it parses to a number, which PostHog then tries to iterate,
+  // so the API answers 500 rather than 400. A dashboard created a moment ago holds
+  // nothing, so skip the lookup there and save a round trip.
+  const byName = new Map();
+  if (reusing) {
+    const filter = encodeURIComponent(JSON.stringify([dashboard.id]));
+    const current = await api('GET', `/insights/?limit=300&dashboards=${filter}`);
+    for (const insight of current.results || []) byName.set(insight.name, insight);
+  }
 
   for (const spec of INSIGHTS) {
     const payload = {
@@ -188,6 +197,8 @@ const main = async () => {
       description: spec.description,
       query: spec.query,
       tags: [TAG],
+      // Deprecated in PostHog's API in favour of `dashboard_tiles`, which is
+      // read-only — so this stays the only way to attach an insight on write.
       dashboards: [dashboard.id],
       saved: true,
     };
@@ -213,7 +224,9 @@ main().catch((err) => {
     '\nCommon causes:\n' +
       '  401/403 → key lacks dashboard:write / insight:write scopes, or wrong host region\n' +
       '  404     → wrong POSTHOG_PROJECT_ID\n' +
-      '  400 schema error → PostHog query schema changed; see maintainer note at top of this file'
+      '  400 schema error → PostHog query schema changed; see maintainer note at top of this file\n' +
+      '  500     → not yours to fix: this script sent something PostHog choked on.\n' +
+      '            Open an issue on the template repo with the failing call above'
   );
   process.exit(1);
 });
