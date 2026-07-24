@@ -12,7 +12,7 @@ Analytics is **off by default**. When enabled (PostHog adapter, see CONFIG.md), 
 |---|---|---|
 | `page_view` | `source?: string` (PostHog auto-captures device/geo/referrer/`utm_*`) | Page load |
 | `amount_selected` | `amount: number`, `preset: boolean` | Donor taps a chip or commits a custom amount (debounced 800ms on typing) |
-| `pay_clicked` | `method: 'deeplink' \| 'copy_vpa' \| 'qr_view' \| 'qr_download'`, `amount: number` | Donor takes a payment action. `qr_view` fires once per session when the QR becomes visible on mobile (desktop QR is always visible ⇒ no `qr_view` on desktop) |
+| `pay_clicked` | `method: 'deeplink' \| 'copy_vpa' \| 'qr_download'`, `amount: number` | Donor takes a payment action. Every value is a real click — there is no `qr_view`, because the QR is always on screen once an amount is payable (ADR-046/047), so a "view" would just be `page_view` under another name |
 
 `source` is present only when the visit arrived with a `?ref=`/`?source=` parameter — the
 sanitised hostname of the page that linked here, which is how the template's own branding

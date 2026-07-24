@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { UpiQr } from '../hooks/useUpiIntent.ts';
@@ -6,15 +6,17 @@ import type { UpiError, UpiIntent } from '../lib/upi.ts';
 import { strings, upiErrorStrings } from '../strings.ts';
 import { PayZone } from './PayZone.tsx';
 
-// The device branch and the clipboard are the two seams under test — mock both so
-// each layout is deterministic and no real Clipboard API is touched. Analytics is
-// mocked for the same reason: it is a seam, and the pay zone is where all four
+// The device branch, the clipboard and the file download are the seams under test —
+// mock all three so each layout is deterministic and no real Clipboard/anchor is
+// touched. Analytics is mocked for the same reason: the pay zone is where all three
 // `pay_clicked` methods originate.
 vi.mock('../hooks/useIsMobile.ts', () => ({ useIsMobile: vi.fn() }));
 vi.mock('../lib/clipboard.ts', () => ({ copyText: vi.fn() }));
+vi.mock('../lib/download.ts', () => ({ downloadDataUrl: vi.fn() }));
 vi.mock('../analytics/index.ts', () => ({ track: vi.fn() }));
 const { useIsMobile } = await import('../hooks/useIsMobile.ts');
 const { copyText } = await import('../lib/clipboard.ts');
+const { downloadDataUrl } = await import('../lib/download.ts');
 const { track } = await import('../analytics/index.ts');
 
 const INTENT: UpiIntent = {
@@ -43,7 +45,7 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe('PayZone — shared', () => {
+describe('PayZone — empty and error states', () => {
   it('prompts for an amount when nothing is payable and there are no errors', () => {
     setMobile(false);
     render(<PayZone intent={null} errors={[]} qr={null} />);
@@ -60,23 +62,32 @@ describe('PayZone — shared', () => {
     expect(screen.getByText(upiErrorStrings.VPA_INVALID_FORMAT)).toBeInTheDocument();
     expect(screen.queryByText(strings.amountPrompt)).not.toBeInTheDocument();
   });
+});
+
+// The layout is now one shape on every device (ADR-046); only the experimental
+// deeplink is mobile-only. Run the shared assertions against both branches.
+describe.each([
+  { label: 'desktop', mobile: false },
+  { label: 'mobile', mobile: true },
+])('PayZone — $label', ({ mobile }) => {
+  beforeEach(() => setMobile(mobile));
 
   it('shows the resolved amount and VPA together so donors can verify', () => {
-    setMobile(false);
     render(<PayZone intent={INTENT} errors={[]} qr={QR} />);
     expect(screen.getByText(strings.payingTo('150', 'shivam@okaxis'))).toBeInTheDocument();
   });
-});
 
-describe('PayZone — desktop', () => {
-  beforeEach(() => setMobile(false));
-
-  it('leads with the QR and offers Copy UPI ID beneath it', () => {
+  it('leads with the QR, always visible (ADR-046)', () => {
     render(<PayZone intent={INTENT} errors={[]} qr={QR} />);
     expect(screen.getByRole('img', { name: /UPI QR code for shivam@okaxis/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: strings.copyUpiId })).toBeInTheDocument();
-    // The deeplink is mobile-only (P0.6).
-    expect(screen.queryByRole('link', { name: strings.payWithUpiApp })).not.toBeInTheDocument();
+  });
+
+  it('puts Copy UPI ID and Save QR in one row, Copy before Save', () => {
+    render(<PayZone intent={INTENT} errors={[]} qr={QR} />);
+    const copy = screen.getByRole('button', { name: strings.copyUpiId });
+    const save = screen.getByRole('button', { name: strings.qrDownload });
+    // Save follows Copy in the DOM → same order the donor reads them left to right.
+    expect(copy.compareDocumentPosition(save) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('copies the VPA and confirms with a toast (P0.7)', async () => {
@@ -89,7 +100,7 @@ describe('PayZone — desktop', () => {
     expect(await screen.findByText(strings.copyConfirmation('150'))).toBeInTheDocument();
   });
 
-  it('warns and still offers copy when the toast copy fails', async () => {
+  it('warns and still offers copy when the clipboard write fails', async () => {
     vi.mocked(copyText).mockResolvedValue(false);
     const user = userEvent.setup();
     render(<PayZone intent={INTENT} errors={[]} qr={QR} />);
@@ -98,71 +109,59 @@ describe('PayZone — desktop', () => {
     expect(await screen.findByText(strings.copyFailed)).toBeInTheDocument();
   });
 
-  it('degrades to a note where the QR would be, keeping copy available', () => {
-    // qr === null is the over-capacity case; the copy path must not depend on it.
+  it('saves the QR PNG under the generated filename, encoding only on click (P0.5)', async () => {
+    const toPngDataUrl = vi.fn(() => 'data:image/png;base64,AAAA');
+    const user = userEvent.setup();
+    render(<PayZone intent={INTENT} errors={[]} qr={{ ...QR, toPngDataUrl }} />);
+
+    // Encoding eagerly would rebuild ~14 KB of base64 on every keystroke.
+    expect(toPngDataUrl).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: strings.qrDownload }));
+    expect(downloadDataUrl).toHaveBeenCalledWith(
+      'data:image/png;base64,AAAA',
+      'chai-shivam-okaxis-150.png',
+    );
+  });
+
+  it('degrades to a note where the QR would be, keeping Copy but dropping Save QR', () => {
+    // qr === null is the over-capacity case; the copy path must not depend on it,
+    // and Save QR has nothing to save.
     render(<PayZone intent={INTENT} errors={[]} qr={null} />);
     expect(screen.getByText(strings.qrUnavailable)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: strings.copyUpiId })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: strings.qrDownload })).not.toBeInTheDocument();
   });
 });
 
-describe('PayZone — mobile', () => {
-  beforeEach(() => setMobile(true));
-
-  it('leads with the deeplink pointed at the exact intent URI (P0.6)', () => {
+describe('PayZone — the experimental deeplink (mobile only)', () => {
+  it('offers a quiet, caveated deeplink pointed at the exact intent URI on mobile', () => {
+    setMobile(true);
     render(<PayZone intent={INTENT} errors={[]} qr={QR} />);
-    const link = screen.getByRole('link', { name: strings.payWithUpiApp });
+
+    const link = screen.getByRole('link', { name: /Pay directly/ });
     expect(link).toHaveAttribute('href', INTENT.uri);
-    expect(screen.getByText(strings.payWithUpiAppHint)).toBeInTheDocument();
+    expect(screen.getByText(strings.payDirectlyWarning)).toBeInTheDocument();
   });
 
-  it('keeps Copy UPI ID visible as a peer path (hard rule 3)', () => {
-    render(<PayZone intent={INTENT} errors={[]} qr={QR} />);
-    expect(screen.getByRole('button', { name: strings.copyUpiId })).toBeInTheDocument();
-  });
-
-  it('hides the QR behind an accordion and reveals it on demand', async () => {
-    const user = userEvent.setup();
+  it('never shows the deeplink on desktop, where a upi:// link is a no-op', () => {
+    setMobile(false);
     render(<PayZone intent={INTENT} errors={[]} qr={QR} />);
 
-    const toggle = screen.getByRole('button', { name: new RegExp(strings.showQr) });
-    expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByRole('img', { name: /UPI QR code/ })).not.toBeInTheDocument();
-
-    await user.click(toggle);
-    expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByRole('img', { name: /UPI QR code/ })).toBeInTheDocument();
-    expect(screen.getByText(strings.showQrHint)).toBeInTheDocument();
-  });
-
-  it('surfaces the fallback callout when the deeplink likely failed (P0.6)', () => {
-    vi.useFakeTimers();
-    try {
-      render(<PayZone intent={INTENT} errors={[]} qr={QR} />);
-      const link = screen.getByRole('link', { name: strings.payWithUpiApp });
-      // Stop jsdom from trying to navigate to the upi:// scheme.
-      link.addEventListener('click', (event) => event.preventDefault());
-
-      fireEvent.click(link);
-      expect(screen.queryByText(strings.deeplinkFallbackCallout)).not.toBeInTheDocument();
-
-      // The page never went hidden → the intent almost certainly did not open.
-      act(() => vi.advanceTimersByTime(1500));
-      expect(screen.getByText(strings.deeplinkFallbackCallout)).toBeInTheDocument();
-    } finally {
-      vi.useRealTimers();
-    }
+    expect(screen.queryByRole('link', { name: /Pay directly/ })).not.toBeInTheDocument();
+    expect(screen.queryByText(strings.payDirectlyWarning)).not.toBeInTheDocument();
   });
 });
 
 describe('PayZone — analytics (P0.11)', () => {
-  it('reports the deeplink tap alongside the failure heuristic', () => {
+  it('reports the deeplink tap on mobile', () => {
     setMobile(true);
     render(<PayZone intent={INTENT} errors={[]} qr={QR} />);
-    const link = screen.getByRole('link', { name: strings.payWithUpiApp });
+    const link = screen.getByRole('link', { name: /Pay directly/ });
+    // Stop jsdom from trying to navigate to the upi:// scheme.
     link.addEventListener('click', (event) => event.preventDefault());
 
-    fireEvent.click(link);
+    link.click();
 
     expect(track).toHaveBeenCalledExactlyOnceWith({
       name: 'pay_clicked',
@@ -199,21 +198,8 @@ describe('PayZone — analytics (P0.11)', () => {
     });
   });
 
-  it('reports the mobile QR once per session, however often it is reopened', async () => {
+  it('never emits a qr_view — the QR is always on screen (ADR-047)', () => {
     setMobile(true);
-    render(<PayZone intent={INTENT} errors={[]} qr={QR} />);
-    const toggle = screen.getByRole('button', { name: strings.showQr });
-
-    await userEvent.click(toggle);
-    await userEvent.click(screen.getByRole('button', { name: strings.hideQr }));
-    await userEvent.click(screen.getByRole('button', { name: strings.showQr }));
-
-    expect(vi.mocked(track).mock.calls.filter(([e]) => e.name === 'pay_clicked')).toHaveLength(1);
-    expect(track).toHaveBeenCalledWith({ name: 'pay_clicked', method: 'qr_view', amount: 150 });
-  });
-
-  it('never reports qr_view on desktop, where the QR was always visible', () => {
-    setMobile(false);
     render(<PayZone intent={INTENT} errors={[]} qr={QR} />);
 
     expect(screen.getByRole('img', { name: /UPI QR code/ })).toBeInTheDocument();

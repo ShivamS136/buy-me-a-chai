@@ -44,7 +44,7 @@ The cost of not solving it: creators either lose a cut of small donations (where
 - As a creator, I want to embed a chai button on my blog so donors don't need to find my page.
 
 **Donor**
-- As a donor on mobile, I want to tap an amount and tap "Pay with UPI app" so I can pay in seconds where deeplinks work.
+- As a donor on mobile, I want to tap an amount and tap "Pay directly" so I can pay in seconds where deeplinks work.
 - As a donor on mobile where deeplinks fail, I want to copy the UPI ID (with amount shown) or screenshot the QR so I can still pay from within my UPI app.
 - As a donor on desktop, I want a QR that updates live with my chosen amount and message so I scan once and pay.
 - As a donor, I want to attach a short message (transaction note) so the creator knows who/why.

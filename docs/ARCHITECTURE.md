@@ -81,14 +81,13 @@ buy-me-a-chai/
     │   ├── Profile.tsx  Bio.tsx  Works.tsx   # creator identity + trust (left column)
     │   ├── ReferralNote.tsx   # inbound ?ref=/?source= chip above the grid (ADR-027)
     │   ├── PaymentCard.tsx    # amount chips, custom input, message (pinned right column)
-    │   ├── PayZone.tsx        # device-adaptive QR/deeplink/copy
+    │   ├── PayZone.tsx        # QR-led on every device; Copy+Save row; mobile-only experimental deeplink (ADR-046)
     │   ├── QrCode.tsx  Toast.tsx
     │   └── Footer.tsx         # repo + maker-support template links (ADR-026, ADR-027)
     └── hooks/
         ├── useUpiIntent.ts    # amount+note → { intent, errors, qr }
         ├── useIsMobile.ts     # useSyncExternalStore over the pointer heuristic
-        ├── useToast.ts        # one ephemeral copy-confirmation toast
-        └── useDeeplinkAttempt.ts  # visibility-change failure heuristic
+        └── useToast.ts        # one ephemeral copy-confirmation toast
 ```
 
 v1 restructures to pnpm workspaces: `packages/page`, `packages/widget` (Lit web component), `packages/core` (upi.ts, schema — shared, framework-free). **Do not pre-create this in v0**; `src/lib` and `src/config` are written framework-free so extraction is mechanical.
@@ -108,15 +107,15 @@ v1 restructures to pnpm workspaces: `packages/page`, `packages/widget` (Lit web 
 ```
 `buildUpiUri` rules (unit-tested, 100% branch): 2-decimal `am`, whole rupees only (ADR-011); `tn` truncated to 60 **decoded code points** (ADR-012); RFC 3986 `encodeURIComponent` encoding applied to `pn`/`tn` only — **never `URLSearchParams`**, which emits `+` for a space (ADR-010) — while `pa`/`am`/`cu` are emitted verbatim; **no** `mc`/`tr`/`mode`/`purpose` params (P2P safety — see CLAUDE.md).
 
-### Deeplink attempt heuristic
-On intent click: record `t0`, listen for `visibilitychange` for 1500ms. If document never became hidden ⇒ app likely didn't open ⇒ set `deeplinkLikelyFailed` state ⇒ PayZone surfaces fallback callout. False positives are acceptable (callout is gentle); false negatives cost nothing.
+### Deeplink honesty
+We cannot detect whether a `upi://` intent opened an app — there is no callback. Rather than guess, the pay zone demotes the deeplink to an experimental, mobile-only affordance and states the caveat up front with an always-visible line ("…opens in only a few apps. Scan the QR or copy the ID above instead"). This retired the old 1.5s `visibilitychange` failure heuristic and its `useDeeplinkAttempt` hook (ADR-046): a static, honest caveat beats a probabilistic one, and the two guaranteed paths sit right above it.
 
 ### Analytics contract
 ```ts
 type ChaiEvent =
   | { name: 'page_view'; source?: string }   // sanitised inbound ?ref= host (ADR-027)
   | { name: 'amount_selected'; amount: number; preset: boolean }
-  | { name: 'pay_clicked'; method: 'qr_view' | 'deeplink' | 'copy_vpa' | 'qr_download'; amount: number };
+  | { name: 'pay_clicked'; method: 'deeplink' | 'copy_vpa' | 'qr_download'; amount: number };
 ```
 Call sites import one function, `track(event)`, from `src/analytics/index.ts`; nothing else reaches the adapter. The adapter is chosen once at startup by two gates: the build-time `__CHAI_ANALYTICS__` flag (does the config declare analytics? — decides which *bytes* ship) and the runtime `config.analytics` (is there a key? — decides whether they *run*). See ADR-028; the reason the second exists is that `load.ts` erases the analytics object when `VITE_POSTHOG_KEY` is unset, so a fork that copies a config but not its environment lands on `noop`.
 

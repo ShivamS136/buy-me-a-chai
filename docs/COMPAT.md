@@ -2,7 +2,7 @@
 
 Real-device results for each payment method. PR your findings — include app version and OS. ✅ works · ⚠️ partial (note it) · ❌ fails · ⬜ untested.
 
-**Methods:** `QR` = scan from another device · `Upload` = screenshot QR → upload inside app · `Deeplink` = "Pay with UPI app" button · `Copy` = Copy-UPI-ID → manual pay (amount typed by donor).
+**Methods:** `QR` = scan from another device · `Upload` = screenshot QR → upload inside app · `Deeplink` = "Pay directly" button (mobile, experimental) · `Copy` = Copy-UPI-ID → manual pay (amount typed by donor).
 
 ## Android (Chrome)
 

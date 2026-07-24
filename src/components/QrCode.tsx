@@ -1,14 +1,13 @@
-import { Download } from 'lucide-react';
 import type { JSX } from 'react';
-import { downloadDataUrl } from '../lib/download.ts';
 import { strings } from '../strings.ts';
 
 /**
- * The live UPI QR (P0.5).
+ * The live UPI QR (P0.5) — the pay zone's hero on every device.
  *
- * Presentational by design: it receives an already-rendered SVG data URI and a
- * PNG factory from `useUpiIntent`, and never encodes anything itself. That keeps
- * every QR the page shows and every QR it downloads derived from one matrix.
+ * Presentational by design: it receives an already-rendered SVG data URI and never
+ * encodes anything itself, so every QR the page shows is derived from one matrix.
+ * The Save-QR action is not here — it sits in `PayZone`'s action row beside Copy
+ * UPI ID (ADR-046), which owns the PNG encode and the analytics.
  *
  * An `<img>` rather than inline SVG so the symbol carries a real `alt` — the VPA
  * and amount in text, which is both the accessibility requirement (DESIGN.md) and
@@ -17,25 +16,11 @@ import { strings } from '../strings.ts';
 export interface QrCodeProps {
   readonly svgDataUrl: string;
   readonly alt: string;
-  readonly filename: string;
-  /** Encodes the PNG on demand — see `UpiQr.toPngDataUrl`. */
-  readonly toPngDataUrl: () => string;
-  /**
-   * Fired after the download starts. A callback rather than an import so this
-   * component stays presentational and analytics-free — the caller owns the event.
-   */
-  readonly onDownload?: () => void;
 }
 
-export function QrCode({
-  svgDataUrl,
-  alt,
-  filename,
-  toPngDataUrl,
-  onDownload,
-}: QrCodeProps): JSX.Element {
+export function QrCode({ svgDataUrl, alt }: QrCodeProps): JSX.Element {
   return (
-    <figure className="flex flex-col items-center gap-4">
+    <figure className="flex flex-col items-center gap-3">
       {/*
        * The plate stays white in dark mode. A QR is read by luminance contrast,
        * and inverting it is the single most common way to make one unscannable.
@@ -54,18 +39,6 @@ export function QrCode({
       <figcaption className="text-center text-[13px] leading-snug text-chai-muted">
         {strings.qrCaption}
       </figcaption>
-
-      <button
-        type="button"
-        onClick={() => {
-          downloadDataUrl(toPngDataUrl(), filename);
-          onDownload?.();
-        }}
-        className="inline-flex min-h-11 items-center gap-2 rounded-full border border-chai-line px-5 text-[13px] font-semibold text-chai-ink transition-colors hover:border-chai-accent hover:text-chai-accent"
-      >
-        <Download aria-hidden="true" className="h-4 w-4" />
-        {strings.qrDownload}
-      </button>
     </figure>
   );
 }

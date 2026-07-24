@@ -50,7 +50,7 @@ describe('the analytics contract', () => {
     expect([...emitted].sort()).toEqual([...CHAI_EVENT_NAMES].sort());
   });
 
-  it('uses only the four declared pay methods', () => {
+  it('uses only the three declared pay methods', () => {
     const used = new Set<string>();
     for (const source of SOURCES) {
       for (const match of source.text.matchAll(/method:\s*'([^']+)'/g)) {

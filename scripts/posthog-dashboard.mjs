@@ -112,7 +112,7 @@ const INSIGHTS = [
   {
     name: 'Pay clicks by method',
     description:
-      'deeplink vs copy_vpa vs qr_view vs qr_download. High copy_vpa on mobile usually means GPay/PhonePe are blocking deeplinks for your donors (expected, see ADR-006).',
+      'deeplink vs copy_vpa vs qr_download. High copy_vpa on mobile usually means GPay/PhonePe are blocking deeplinks for your donors (expected, see ADR-006).',
     query: trends([ev('pay_clicked', { math: 'total' })], {
       trendsFilter: { display: 'ActionsBar' },
       breakdownFilter: { breakdown: 'method', breakdown_type: 'event' },

@@ -6,7 +6,7 @@ UI/UX specification for the v0 page (and forward pointers for the v1 widget). Th
 
 1. **One job:** get a donor from landing to a payable UPI intent in ≤ 2 taps (amount → pay). Everything else (bio, works) supports trust, never blocks the flow.
 2. **Honest UX:** never fake certainty. No success screens, no "payment received", no spinners pretending to wait for confirmation. The page's job ends when the UPI app opens or the QR is scanned.
-3. **Fallbacks are first-class:** QR, Copy UPI ID, and deeplink are peers. Whichever is most likely to work on the current device is visually primary; the others remain one glance away.
+3. **The guaranteed paths lead:** the QR and Copy UPI ID always work and are always visible, on every device (ADR-046). The `upi://` deeplink is a best-effort extra — UPI apps block most in-browser payments to a personal VPA — so it is present on mobile but deliberately de-emphasized and marked experimental, never the primary call. All three stay visible on mobile (hard rule 3).
 4. **Creator's page, not ours:** project branding is a locked masthead wordmark plus a "Create your support page" CTA into GitHub's use-this-template flow, and two tiny footer links — "Powered by buy-me-a-chai" (the repo) and "Support {maker}" (the maintainer's support page). Their values live in the `branding` block of `chai.config.yaml` (defaults = the maker's, ADR-032); a fork overrides them there to rebrand, or deletes the links from source to remove them (no toggle — the code is public). The links are referral-tagged so clone-driven traffic is traceable to the source project, and an inbound `?ref=`/`?source=` shows a small "Referred via …" chip (ADR-026, ADR-027). They are the only ask of a free project; keep them tiny.
 
 ## Visual language
@@ -40,7 +40,7 @@ A locked masthead and the footer frame the page full-width. Between them, one gr
 │                            │  [ message ______ ] │  ← sticky:
 │ Projects                   │  ──── tear ────     │    the ticket
 │ ─ title · description      │  QR (large, live)   │    stays in
-│ ─ title · description      │  [ Copy UPI ID ]    │    view
+│ ─ title · description      │ [Copy UPI ID][Save] │    view
 ├────────────────────────────┴────────────────────┤
 │ powered-by · support the maker         (footer)  │
 └─────────────────────────────────────────────────┘
@@ -62,13 +62,12 @@ The masthead, grid and footer share a `max-w-[480px] lg:max-w-[1040px]` shell so
 ### Message
 - One line, 60-char counter, placeholder from config `defaultNote`. Empty ⇒ default note used. Strip newlines; warn (don't block) on emoji ("some UPI apps drop emojis").
 
-### Pay zone — device adaptive
-- **Desktop (no touch / wide):** QR primary at ~240px with download button ("Save QR"). Below: `Copy UPI ID` secondary. Caption: "Scan with any UPI app — GPay, PhonePe, Paytm, BHIM."
-- **Mobile:** buttons primary:
-  1. `Pay with UPI app` → fires `upi://` intent. Sub-caption: "Opens your UPI app. If nothing happens, use the options below." After tap, swap caption to the fallback nudge (see below).
-  2. `Copy UPI ID` → copies VPA, toast: "UPI ID copied · amount ₹150 — paste in any UPI app".
-  3. `Show QR` accordion → for screenshot-then-upload-QR flow ("Open your UPI app → scan/upload this QR").
-- **Deeplink failure handling (critical):** we cannot detect failure. Heuristic: on `Pay with UPI app` tap, start a 1.5s visibility-change check — if the page never lost visibility, surface a gentle callout: "App didn't open? GPay/PhonePe sometimes block browser payments — Copy UPI ID works everywhere." This is the honest-UX centerpiece; get the copy right, no blame on the donor.
+### Pay zone — one layout, every device (ADR-046)
+The QR leads as the hero on every device, always visible once an amount is payable — a phone donor screenshots it or scans on a second device; a desktop donor scans it directly. Beneath it:
+- **QR** at ~240px, black-on-white in both themes. Caption: "Scan with any UPI app — GPay, PhonePe, Paytm, BHIM."
+- **`Copy UPI ID` and `Save QR`** — equal-weight peers in one row, Copy then Save. These are the two guaranteed paths (ADR-006). Copy toast: "UPI ID copied · amount ₹150 — paste in any UPI app". `Save QR` drops out when the QR is over capacity; Copy never depends on it.
+- **`Pay directly` (mobile only, experimental):** the quietest thing in the zone — a low-emphasis text link, tagged "experimental", that fires the `upi://` intent. A `upi://` link is a no-op on desktop, so it is mobile-only. It stays visible (hard rule 3) but never leads.
+- **Honest-UX mechanism:** we cannot detect whether the deeplink opened an app, so instead of guessing we state the caveat up front. An always-visible line under `Pay directly` reads: "UPI apps block most in-browser payments to a personal UPI ID, so this opens in only a few apps. Scan the QR or copy the ID above instead." It blames the platform, never the donor, and points at the paths that always work — sitting right above it. This supersedes the old 1.5s visibility-change failure heuristic (ADR-046), which guessed at a failure we can simply name.
 
 ### After-tap state (all methods)
 - No success state. Show a calm note: "Complete the payment in your UPI app. This page can't confirm payments — that's why it's commission-free 🙂" — turning the limitation into the brand promise.

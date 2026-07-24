@@ -76,23 +76,24 @@ export const strings = {
   payingTo: (formattedAmount: string, vpa: string): string =>
     `Paying ₹${formattedAmount} to ${vpa}`,
 
-  // ── Pay zone — device adaptive (P0.6, P0.7) ──────────────────────────────────
+  // ── Pay zone (P0.5, P0.6, P0.7) ──────────────────────────────────────────────
 
   /**
-   * Mobile-primary action. Never promises success — the deeplink is a best-effort
-   * accelerator, not a guaranteed path (ADR-006). The honest framing lives in the
-   * hint below it, which is always shown.
+   * The experimental deeplink label (ADR-046). UPI apps block most in-browser
+   * payments to a personal VPA, so it opens in only a few apps — a demoted,
+   * clearly-caveated affordance, never a primary call. Never promises success.
    */
-  payWithUpiApp: 'Pay with UPI app',
-  payWithUpiAppHint: 'Opens your UPI app. If nothing happens, use the options below.',
-
+  payDirectly: 'Pay directly',
+  /** The tag beside it, so the label reads as a demoted, best-effort path. */
+  experimentalTag: 'experimental',
   /**
-   * Surfaced only after a tap that never took the page to the background — the
-   * heuristic's best guess that the intent silently failed (P0.6). Points at the
-   * copy path, which works everywhere, and blames the app, never the donor.
+   * The always-visible caveat under the deeplink — the honest-UX mechanism now
+   * (ADR-046, replacing the old visibility-change failure heuristic). Blames the
+   * platform, never the donor, and points at the two paths that always work, which
+   * sit right above it.
    */
-  deeplinkFallbackCallout:
-    "App didn't open? GPay and PhonePe sometimes block browser payments — Copy UPI ID works everywhere.",
+  payDirectlyWarning:
+    'UPI apps block most in-browser payments to a personal UPI ID, so this opens in only a few apps. Scan the QR or copy the ID above instead.',
 
   /** Copy the VPA (P0.7). The universal fallback: always visible, works everywhere. */
   copyUpiId: 'Copy UPI ID',
@@ -104,14 +105,6 @@ export const strings = {
     `UPI ID copied · amount ₹${formattedAmount} — paste in any UPI app.`,
   /** Both clipboard paths failed; the VPA is still on screen to select manually. */
   copyFailed: "Couldn't copy automatically — the UPI ID is shown above; select and copy it.",
-
-  /**
-   * Mobile `Show QR` accordion (P0.5): the screenshot-then-upload-QR path for
-   * donors whose deeplink fails and who would rather scan than copy.
-   */
-  showQr: 'Show QR',
-  hideQr: 'Hide QR',
-  showQrHint: 'Open your UPI app, then scan or upload this QR.',
 
   /**
    * The honest-UX centrepiece (DESIGN.md §After-tap): the limitation *is* the

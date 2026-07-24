@@ -15,8 +15,13 @@
  * (ADR-001, ADR-007).
  */
 
-/** How a donor acted on the payment. `qr_view` is mobile-only — see ANALYTICS.md. */
-export const PAY_METHODS = ['deeplink', 'copy_vpa', 'qr_view', 'qr_download'] as const;
+/**
+ * How a donor acted on the payment. Every value is a real click: a `deeplink` tap,
+ * a `copy_vpa` tap, or a `qr_download` tap. There is no `qr_view` — the QR is always
+ * on screen once an amount is payable (ADR-046), so a "view" is just `page_view`
+ * under another name and would make the funnel meaningless (ADR-047, ANALYTICS.md).
+ */
+export const PAY_METHODS = ['deeplink', 'copy_vpa', 'qr_download'] as const;
 export type PayMethod = (typeof PAY_METHODS)[number];
 
 export type ChaiEvent =
