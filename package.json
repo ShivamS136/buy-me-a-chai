@@ -1,6 +1,6 @@
 {
   "name": "buy-me-a-chai",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "description": "A zero-commission, self-hosted Buy Me a Chai page for Indian creators, powered by UPI P2P.",
